@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from config.settings import settings
 from src.advisor.investment_advisor import InvestmentAdvisor, PropertyInput
 
 app = FastAPI(title="ProphetAI API", version="0.1.0")
 advisor = InvestmentAdvisor()
+
+allowed_origins = [origin.strip() for origin in settings.frontend_origins.split(",") if origin.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins or ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class PropertyRequest(BaseModel):

@@ -12,6 +12,9 @@ env/
 .mypy_cache/
 .idea/
 .vscode/
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
 data/raw/*
 data/processed/*
 data/curated/*
