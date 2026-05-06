@@ -1,121 +1,190 @@
-# HouseSignal
+# 🏠 HouseSignal
 
-HouseSignal is a California residential real estate investment advisor that estimates fair value, forecasts appreciation and rent, estimates risk/yield, computes investment scores, and serves recommendations via FastAPI + Next.js.
+HouseSignal is a real estate investment intelligence platform for California residential properties. It helps users evaluate a home as an investment by estimating fair market value, forecasting appreciation and rent, measuring downside risk, and turning those signals into an easy-to-understand recommendation.
 
-## Quick Start
+The goal is simple: make housing investment analysis feel less like a spreadsheet maze and more like a guided decision workspace.
 
-### 1) Backend (FastAPI + SQLite)
+## 🔎 What HouseSignal Does
 
-1. Create and activate a virtual environment.
-2. Install Python dependencies:
-   ```bash
-   pip3 install -r requirements.txt
-   ```
-3. Configure environment variables in `.env` (defaults are SQLite + local frontend origin).
-4. Run API:
-   ```bash
-   python3 scripts/run_local.py
-   ```
-   For auto-reload during development:
-   ```bash
-   python3 scripts/run_local.py --reload
-   ```
+HouseSignal lets a user enter property details such as address, price, beds, baths, square footage, and neighborhood price per square foot. The platform then produces a structured investment analysis with:
 
-### 2) Frontend (Next.js)
+- Fair value estimate
+- 3, 6, and 12 month appreciation forecasts
+- Expected monthly rent estimate
+- Rental yield calculation
+- Downside risk estimate
+- Investment score
+- Recommendation label such as `strong buy`, `buy with caution`, `hold/monitor`, or `avoid`
 
-1. Install Node dependencies:
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. Create local frontend env:
-   ```bash
-   cp .env.local.example .env.local
-   ```
-3. Run frontend:
-   ```bash
-   npm run dev
-   ```
+The current version includes a working MVP experience with baseline model logic, a full web frontend, backend APIs, data validation, and an ingestion pipeline ready for real housing datasets.
 
-Frontend runs on `http://localhost:3000` and calls FastAPI at `http://localhost:8000`.
+## 👥 Who It Is For
 
-## Deployment
+HouseSignal is designed for people who want a clearer way to understand residential real estate opportunities.
 
-### Frontend on Vercel (free tier)
+It can appeal to:
 
-- Import the `frontend/` directory as the Vercel project root.
-- Set env var `NEXT_PUBLIC_API_BASE_URL` to your deployed FastAPI URL.
+- First-time real estate investors comparing potential purchases
+- Small investment teams screening properties faster
+- Real estate analysts who want a repeatable scoring workflow
+- Agents or advisors explaining investment tradeoffs to clients
+- Recruiters or engineering teams evaluating full-stack ML product work
 
-### Backend on Render/Railway free tier
+## 🖥️ Product Experience
 
-- Deploy FastAPI service from repo root.
-- Set `FRONTEND_ORIGINS` to your Vercel domain and localhost:
-  - Example: `https://your-app.vercel.app,http://localhost:3000`
+HouseSignal is built as a full-page web dashboard.
 
-## Ingestion Pipeline
+The main workspace includes property inputs, scenario presets, investment metrics, and recommendation outputs. A side-panel AI assistant helps users understand real estate terms and interpret the analysis in plain language. The assistant currently uses a local glossary and rule-based explanation layer, so it works without paid AI API keys.
 
-HouseSignal now includes an end-to-end ingestion pipeline that performs:
-- raw file discovery
-- schema/contract validation
-- processed and curated parquet outputs
-- SQLite upserts for core tables
-- ingestion quality report generation
+The frontend is built with Next.js and React, making it ready for deployment on Vercel.
 
-Drop source files into:
+## ⚙️ How It Works
+
+HouseSignal uses a modular pipeline from data to recommendation.
+
+1. Data ingestion
+   Source files are placed into raw data folders for housing, rent, macroeconomic, and firm deal data.
+
+2. Data validation
+   Pydantic contracts validate each source so bad or incomplete data is caught early.
+
+3. Processing and curation
+   Validated data is normalized, deduplicated, written to curated Parquet files, and loaded into SQLite.
+
+4. Prediction and scoring
+   The backend estimates fair value, rent, appreciation, risk, and yield, then combines those outputs into an investment score.
+
+5. Recommendation
+   A recommendation engine converts the score into a user-friendly label.
+
+6. Explanation
+   The frontend assistant explains the outputs and common real estate terms in approachable language.
+
+## ✅ Current Capabilities
+
+- Full Next.js frontend dashboard
+- FastAPI backend with `/predict` and `/recommend` endpoints
+- SQLite database layer for MVP speed
+- SQLAlchemy models for properties, rents, market features, firm deal history, and predictions
+- Data contracts for Redfin, Zillow-style property data, rents, macro data, and firm deals
+- Raw to processed to curated ingestion pipeline
+- Parquet outputs for processed and curated datasets
+- Investment scoring and recommendation logic
+- Rule-based AI assistant experience without paid API keys
+- Test suite covering API behavior, advisor logic, and data contracts
+
+## 📊 Data Sources
+
+HouseSignal is designed to work with free or low-cost real estate data sources.
+
+Recommended free sources include:
+
+- Redfin Data Center for housing market trends
+- Zillow Research data for housing and rent indexes
+- HUD Fair Market Rent data for rent benchmarks
+- FRED for macroeconomic indicators
+- BLS for labor market data
+- Internal firm deal data from CSV exports
+
+The ingestion system supports `.csv`, `.json`, and `.parquet` files.
+
+## 🧰 Tech Stack
+
+Frontend:
+
+- Next.js
+- React
+- TypeScript
+- CSS
+- Vercel-ready project structure
+
+Backend:
+
+- FastAPI
+- Pydantic
+- SQLAlchemy
+- SQLite for local MVP storage
+- Uvicorn
+
+Data and ML:
+
+- Pandas
+- NumPy
+- scikit-learn
+- XGBoost
+- Parquet-based curated datasets
+- Modular training and prediction modules
+
+Testing and quality:
+
+- Pytest
+- Data contract validation
+- API tests
+- Frontend production build checks
+
+## 📁 Project Structure
+
+```text
+frontend/          Next.js web app
+src/api/           FastAPI backend
+src/advisor/       Recommendation orchestration
+src/models/        Forecasting, risk, and scoring modules
+src/valuation/     Fair value logic
+src/ingestion/     Source-specific data loaders
+src/pipeline/      End-to-end ingestion pipeline
+src/schemas/       Data contracts and validation
+src/database/      SQLAlchemy connection and models
+data/              Raw, processed, and curated data folders
+tests/             Backend and data validation tests
+scripts/           Local API and ingestion runners
+```
+
+## 🚀 Running Locally
+
+Run the backend:
+
+```bash
+pip3 install -r requirements.txt
+python3 scripts/run_local.py
+```
+
+Run the frontend:
+
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local
+npm run dev
+```
+
+The app runs at `http://localhost:3000`, and the API runs at `http://localhost:8000`.
+
+## 📥 Running Ingestion
+
+Drop data files into:
+
 - `data/raw/redfin/`
 - `data/raw/zillow/`
 - `data/raw/rent/`
 - `data/raw/macro/`
 - `data/raw/firm/`
 
-Supported file formats:
-- `.csv`
-- `.json`
-- `.parquet`
+Then run:
 
-Run ingestion:
 ```bash
 python3 scripts/run_ingestion.py
 ```
 
-Outputs:
-- `data/processed/*_validated.parquet`
-- `data/curated/*_curated.parquet`
+Outputs are written to:
+
+- `data/processed/`
+- `data/curated/`
 - `data/curated/ingestion_report.json`
 
-## Legacy UI
+## 🛠️ Project Status
 
-Legacy Streamlit UI still exists for internal prototyping:
-```bash
-streamlit run app/streamlit_app.py
-```
+HouseSignal is currently an MVP with a complete product shell, working backend APIs, a usable frontend, data validation, and an ingestion pipeline. The prediction outputs currently use baseline heuristics and model scaffolding. The next major step is training and calibrating real ML models using ingested historical housing, rent, macroeconomic, and deal data.
 
-## Project Structure
+## ⚠️ Disclaimer
 
-The project follows a modular architecture across configuration, ingestion, processing, models, valuation, advisor orchestration, API, and frontend layers.
-
-## Data Contracts (V1)
-
-HouseSignal validates ingestion inputs against source contracts before data is used downstream.
-
-- Supported file formats: `.csv`, `.json`, `.parquet`
-- Validation engine: Pydantic row-level contracts
-- Behavior: missing required columns or invalid values raise `DataContractError`
-
-Canonical contracts implemented:
-
-- `RedfinMarketRecord`
-  - Required: `region`, `region_type`, `period_end`, `median_sale_price`
-- `ZillowPropertyRecord`
-  - Required: `address`, `city`, `state`, `zip_code`, `beds`, `baths`, `sqft`, `list_price`
-- `FirmDealRecord`
-  - Required: `deal_id`, `address`, `city`, `state`, `zip_code`, `purchase_date`, `purchase_price`
-- `RentRecord` (schema-ready)
-- `MacroRecord` (schema-ready)
-
-Implementation files:
-
-- `src/schemas/contracts.py`
-- `src/ingestion/redfin_loader.py`
-- `src/ingestion/zillow_loader.py`
-- `src/ingestion/firm_data_loader.py`
+HouseSignal is a decision-support tool, not financial advice. Real estate investment decisions should include additional due diligence, professional guidance, and awareness of market risk.
