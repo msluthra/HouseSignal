@@ -1,1 +1,1 @@
-"""Source package for ProphetAI."""
+"""Source package for HouseSignal."""

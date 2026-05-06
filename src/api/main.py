@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from config.settings import settings
 from src.advisor.investment_advisor import InvestmentAdvisor, PropertyInput
 
-app = FastAPI(title="ProphetAI API", version="0.1.0")
+app = FastAPI(title="HouseSignal API", version="0.1.0")
 advisor = InvestmentAdvisor()
 
 allowed_origins = [origin.strip() for origin in settings.frontend_origins.split(",") if origin.strip()]

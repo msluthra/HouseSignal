@@ -1,4 +1,4 @@
-"""Streamlit frontend for ProphetAI recommendations."""
+"""Streamlit frontend for HouseSignal recommendations."""
 
 from __future__ import annotations
 
@@ -131,7 +131,7 @@ def ask_gemini(question: str, result: dict[str, Any], chat_history: list[dict[st
         history_lines.append(f"{role}: {content}")
 
     prompt = (
-        "You are ProphetAI Copilot, a friendly real-estate assistant for non-expert users. "
+        "You are HouseSignal Copilot, a friendly real-estate assistant for non-expert users. "
         "Explain terms simply, avoid financial guarantees, and use only provided context.\n\n"
         f"{get_retrieved_context(question, result)}\n\n"
         "Recent chat:\n"
@@ -167,14 +167,14 @@ def ask_gemini(question: str, result: dict[str, Any], chat_history: list[dict[st
         return f"Gemini request failed: {exc}"
 
 
-st.set_page_config(page_title="ProphetAI", layout="wide")
+st.set_page_config(page_title="HouseSignal", layout="wide")
 
 if "result" not in st.session_state:
     st.session_state["result"] = None
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
 
-st.title("ProphetAI")
+st.title("HouseSignal")
 st.caption("Friendly AI-powered real estate investment insights for California homes.")
 
 with st.container(border=True):
@@ -250,7 +250,7 @@ if run_analysis:
         response.raise_for_status()
         st.session_state["result"] = response.json()
     except requests.RequestException as exc:
-        st.error(f"Could not reach ProphetAI API at {API_BASE_URL}: {exc}")
+        st.error(f"Could not reach HouseSignal API at {API_BASE_URL}: {exc}")
 
 result = st.session_state.get("result")
 if result:
@@ -301,7 +301,7 @@ if result:
     if "AI Chat Copilot" in show_metrics:
         with st.container(border=True):
             st.subheader("AI Chat Copilot (Gemini Flash)")
-            st.caption("Ask in plain English. ProphetAI Copilot will explain real-estate terms and this property analysis.")
+            st.caption("Ask in plain English. HouseSignal Copilot will explain real-estate terms and this property analysis.")
 
             if not GEMINI_API_KEY:
                 st.warning("Set `GEMINI_API_KEY` in `.env` to enable live AI chat responses.")

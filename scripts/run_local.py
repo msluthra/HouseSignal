@@ -41,7 +41,7 @@ def run(reload: bool = False) -> int:
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for local runner."""
-    parser = argparse.ArgumentParser(description="Run the ProphetAI API.")
+    parser = argparse.ArgumentParser(description="Run the HouseSignal API.")
     parser.add_argument(
         "--reload",
         action="store_true",

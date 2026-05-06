@@ -5,7 +5,7 @@
   --muted: #475569;
   --brand: #0ea5a4;
   --brand-dark: #0f766e;
-  --line: #e2e8f0;
+  --line: #dbe4f0;
 }
 
 * {
@@ -19,10 +19,42 @@ body {
   color: var(--text);
 }
 
-.container {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 24px;
+.dashboard-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
+  padding: 18px;
+}
+
+.main-pane {
+  display: grid;
+  gap: 14px;
+}
+
+.assistant-pane {
+  position: sticky;
+  top: 18px;
+  height: calc(100vh - 36px);
+}
+
+.hero-card {
+  background: linear-gradient(135deg, #ecfeff, #ffffff 40%);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.05);
+}
+
+.assistant-card {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  gap: 6px;
 }
 
 h1 {
@@ -37,23 +69,20 @@ h1 {
 
 .grid {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
-.grid.two {
-  grid-template-columns: 2fr 1fr;
+.grid.two-equal {
+  grid-template-columns: 1fr 1fr;
 }
 
 .grid.four {
   grid-template-columns: repeat(4, 1fr);
 }
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.05);
+.grid.three {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
 .row {
@@ -77,6 +106,11 @@ select {
   cursor: pointer;
 }
 
+.btn.small {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
 .btn.primary {
   background: var(--brand);
   color: white;
@@ -84,6 +118,11 @@ select {
 
 .btn.primary:hover {
   background: var(--brand-dark);
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .input {
@@ -104,8 +143,11 @@ select {
   font-weight: 700;
 }
 
+.error-text {
+  color: #b91c1c;
+}
+
 .chat {
-  max-height: 280px;
   overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -117,6 +159,7 @@ select {
   margin-bottom: 10px;
   padding: 10px;
   border-radius: 10px;
+  font-size: 0.95rem;
 }
 
 .msg.user {
@@ -127,9 +170,25 @@ select {
   background: #ecfeff;
 }
 
+@media (max-width: 1180px) {
+  .dashboard-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .assistant-pane {
+    position: static;
+    height: auto;
+  }
+
+  .assistant-card {
+    grid-template-rows: auto;
+  }
+}
+
 @media (max-width: 900px) {
-  .grid.two,
-  .grid.four {
+  .grid.two-equal,
+  .grid.four,
+  .grid.three {
     grid-template-columns: 1fr;
   }
 }

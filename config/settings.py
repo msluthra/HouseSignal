@@ -22,7 +22,7 @@ class Settings:
 
     database_url: str = os.getenv(
         "DATABASE_URL",
-        "sqlite:///./prophetai.db",
+        "sqlite:///./housesignal.db",
     )
     db_echo: bool = os.getenv("DB_ECHO", "false").lower() == "true"
     db_pool_size: int = int(os.getenv("DB_POOL_SIZE", "10"))

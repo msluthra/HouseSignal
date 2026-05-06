@@ -1,6 +1,6 @@
-# ProphetAI
+# HouseSignal
 
-ProphetAI is a California residential real estate investment advisor that estimates fair value, forecasts appreciation and rent, estimates risk/yield, computes investment scores, and serves recommendations via FastAPI + Next.js.
+HouseSignal is a California residential real estate investment advisor that estimates fair value, forecasts appreciation and rent, estimates risk/yield, computes investment scores, and serves recommendations via FastAPI + Next.js.
 
 ## Quick Start
 
@@ -52,6 +52,37 @@ Frontend runs on `http://localhost:3000` and calls FastAPI at `http://localhost:
 - Set `FRONTEND_ORIGINS` to your Vercel domain and localhost:
   - Example: `https://your-app.vercel.app,http://localhost:3000`
 
+## Ingestion Pipeline
+
+HouseSignal now includes an end-to-end ingestion pipeline that performs:
+- raw file discovery
+- schema/contract validation
+- processed and curated parquet outputs
+- SQLite upserts for core tables
+- ingestion quality report generation
+
+Drop source files into:
+- `data/raw/redfin/`
+- `data/raw/zillow/`
+- `data/raw/rent/`
+- `data/raw/macro/`
+- `data/raw/firm/`
+
+Supported file formats:
+- `.csv`
+- `.json`
+- `.parquet`
+
+Run ingestion:
+```bash
+python3 scripts/run_ingestion.py
+```
+
+Outputs:
+- `data/processed/*_validated.parquet`
+- `data/curated/*_curated.parquet`
+- `data/curated/ingestion_report.json`
+
 ## Legacy UI
 
 Legacy Streamlit UI still exists for internal prototyping:
@@ -65,7 +96,7 @@ The project follows a modular architecture across configuration, ingestion, proc
 
 ## Data Contracts (V1)
 
-ProphetAI validates ingestion inputs against source contracts before data is used downstream.
+HouseSignal validates ingestion inputs against source contracts before data is used downstream.
 
 - Supported file formats: `.csv`, `.json`, `.parquet`
 - Validation engine: Pydantic row-level contracts

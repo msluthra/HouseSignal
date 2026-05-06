@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "ProphetAI",
+  title: "HouseSignal",
   description: "Friendly California real estate investment advisor",
 };
 

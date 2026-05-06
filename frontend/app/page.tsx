@@ -95,49 +95,60 @@ export default function Page() {
   }
 
   return (
-    <main className="container grid" style={{ gap: 18 }}>
-      <section className="card">
-        <h1>ProphetAI</h1>
-        <p className="subtitle">Friendly California real estate investment analysis with quick guidance for non-experts.</p>
-      </section>
+    <main className="dashboard-shell">
+      <section className="main-pane">
+        <header className="card hero-card">
+          <h1>HouseSignal</h1>
+          <p className="subtitle">Full-page California real estate investment workspace with built-in AI guidance.</p>
+        </header>
 
-      <section className="card">
-        <div className="label">Quick scenario buttons</div>
-        <div className="row">
-          {Object.entries(PRESETS).map(([name, payload]) => (
-            <button key={name} className="btn" onClick={() => setForm(payload)}>
-              {name}
-            </button>
-          ))}
-        </div>
-      </section>
+        <section className="card">
+          <div className="label">Quick Scenarios</div>
+          <div className="row">
+            {Object.entries(PRESETS).map(([name, payload]) => (
+              <button key={name} className="btn" onClick={() => setForm(payload)}>
+                {name}
+              </button>
+            ))}
+          </div>
+        </section>
 
-      <section className="grid two">
-        <form className="card grid" onSubmit={runAnalysis} style={{ gap: 12 }}>
-          <h3 style={{ margin: 0 }}>Property Inputs</h3>
-          <div>
-            <div className="label">Address</div>
-            <input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          </div>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-            <div>
-              <div className="label">List Price ($)</div>
-              <input className="input" type="number" value={form.list_price} onChange={(e) => setForm({ ...form, list_price: Number(e.target.value) })} />
+        <section className="card">
+          <form className="grid" onSubmit={runAnalysis} style={{ gap: 12 }}>
+            <div className="grid two-equal">
+              <div>
+                <div className="label">Address</div>
+                <input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              </div>
+              <div>
+                <div className="label">Risk Profile</div>
+                <select className="input" value={riskProfile} onChange={(e) => setRiskProfile(e.target.value)}>
+                  <option>Conservative</option>
+                  <option>Balanced</option>
+                  <option>Aggressive</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <div className="label">Beds</div>
-              <input className="input" type="number" value={form.beds} onChange={(e) => setForm({ ...form, beds: Number(e.target.value) })} />
+
+            <div className="grid four">
+              <div>
+                <div className="label">List Price ($)</div>
+                <input className="input" type="number" value={form.list_price} onChange={(e) => setForm({ ...form, list_price: Number(e.target.value) })} />
+              </div>
+              <div>
+                <div className="label">Beds</div>
+                <input className="input" type="number" value={form.beds} onChange={(e) => setForm({ ...form, beds: Number(e.target.value) })} />
+              </div>
+              <div>
+                <div className="label">Baths</div>
+                <input className="input" type="number" value={form.baths} onChange={(e) => setForm({ ...form, baths: Number(e.target.value) })} />
+              </div>
+              <div>
+                <div className="label">Sqft</div>
+                <input className="input" type="number" value={form.sqft} onChange={(e) => setForm({ ...form, sqft: Number(e.target.value) })} />
+              </div>
             </div>
-            <div>
-              <div className="label">Baths</div>
-              <input className="input" type="number" value={form.baths} onChange={(e) => setForm({ ...form, baths: Number(e.target.value) })} />
-            </div>
-          </div>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-            <div>
-              <div className="label">Sqft</div>
-              <input className="input" type="number" value={form.sqft} onChange={(e) => setForm({ ...form, sqft: Number(e.target.value) })} />
-            </div>
+
             <div>
               <div className="label">Neighborhood Price/Sqft ($)</div>
               <input
@@ -147,97 +158,101 @@ export default function Page() {
                 onChange={(e) => setForm({ ...form, neighborhood_price_per_sqft: Number(e.target.value) })}
               />
             </div>
-          </div>
-          <button className="btn primary" type="submit" disabled={loading}>
-            {loading ? "Running..." : "Run Analysis"}
-          </button>
-          {error ? <div style={{ color: "#b91c1c" }}>{error}</div> : null}
-        </form>
 
-        <aside className="card grid" style={{ gap: 10 }}>
-          <h3 style={{ margin: 0 }}>Friendly Filters</h3>
-          <div>
-            <div className="label">Risk profile</div>
-            <select className="input" value={riskProfile} onChange={(e) => setRiskProfile(e.target.value)}>
-              <option>Conservative</option>
-              <option>Balanced</option>
-              <option>Aggressive</option>
-            </select>
-          </div>
-          <p className="subtitle" style={{ margin: 0 }}>
-            Selected profile: <b>{riskProfile}</b>
-          </p>
-          <p className="subtitle" style={{ margin: 0 }}>
-            Tip: Ask questions below if terms like cap rate, yield, or downside risk are unclear.
-          </p>
-        </aside>
+            <button className="btn primary" type="submit" disabled={loading}>
+              {loading ? "Running Analysis..." : "Run Analysis"}
+            </button>
+            {error ? <div className="error-text">{error}</div> : null}
+          </form>
+        </section>
+
+        {result ? (
+          <>
+            <section className="card">
+              <div className="label">Recommendation</div>
+              <div className="metric" style={{ color: labelColor }}>
+                {result.recommendation_label.toUpperCase()}
+              </div>
+              <p className="subtitle">Risk profile: {riskProfile}</p>
+            </section>
+
+            <section className="grid four">
+              <div className="card">
+                <div className="label">Fair Value</div>
+                <div className="metric">${result.fair_value.toLocaleString()}</div>
+              </div>
+              <div className="card">
+                <div className="label">Expected Rent</div>
+                <div className="metric">${result.expected_monthly_rent.toLocaleString()}</div>
+              </div>
+              <div className="card">
+                <div className="label">Investment Score</div>
+                <div className="metric">{result.investment_score.toFixed(1)}</div>
+              </div>
+              <div className="card">
+                <div className="label">Downside Risk</div>
+                <div className="metric">{(result.downside_risk * 100).toFixed(1)}%</div>
+              </div>
+            </section>
+
+            <section className="grid three">
+              <div className="card">
+                <div className="label">3M Appreciation</div>
+                <div className="metric">{(result.appreciation_3m * 100).toFixed(2)}%</div>
+              </div>
+              <div className="card">
+                <div className="label">6M Appreciation</div>
+                <div className="metric">{(result.appreciation_6m * 100).toFixed(2)}%</div>
+              </div>
+              <div className="card">
+                <div className="label">12M Appreciation</div>
+                <div className="metric">{(result.appreciation_12m * 100).toFixed(2)}%</div>
+              </div>
+            </section>
+          </>
+        ) : (
+          <section className="card">
+            <p className="subtitle" style={{ margin: 0 }}>
+              Run analysis to unlock full metrics and assistant explanations.
+            </p>
+          </section>
+        )}
       </section>
 
-      {result ? (
-        <>
-          <section className="card">
-            <div className="label">Recommendation</div>
-            <div className="metric" style={{ color: labelColor }}>
-              {result.recommendation_label.toUpperCase()}
-            </div>
-          </section>
+      <aside className="assistant-pane">
+        <div className="card assistant-card">
+          <h3 style={{ margin: 0 }}>AI Assistant</h3>
+          <p className="subtitle" style={{ marginBottom: 8 }}>
+            Ask any real-estate term or recommendation question.
+          </p>
 
-          <section className="grid four">
-            <div className="card">
-              <div className="label">Fair Value</div>
-              <div className="metric">${result.fair_value.toLocaleString()}</div>
-            </div>
-            <div className="card">
-              <div className="label">Expected Monthly Rent</div>
-              <div className="metric">${result.expected_monthly_rent.toLocaleString()}</div>
-            </div>
-            <div className="card">
-              <div className="label">Investment Score</div>
-              <div className="metric">{result.investment_score.toFixed(1)}</div>
-            </div>
-            <div className="card">
-              <div className="label">Downside Risk</div>
-              <div className="metric">{(result.downside_risk * 100).toFixed(1)}%</div>
-            </div>
-          </section>
+          <div className="row" style={{ marginBottom: 8 }}>
+            <button className="btn small" onClick={() => askPreset("Why this recommendation?")}>Why this rec?</button>
+            <button className="btn small" onClick={() => askPreset("What are the biggest risks?")}>Top risks</button>
+            <button className="btn small" onClick={() => askPreset("Is this overpriced or discounted?")}>Overpriced?</button>
+          </div>
 
-          <section className="grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-            <div className="card">
-              <div className="label">3 Month Appreciation</div>
-              <div className="metric">{(result.appreciation_3m * 100).toFixed(2)}%</div>
-            </div>
-            <div className="card">
-              <div className="label">6 Month Appreciation</div>
-              <div className="metric">{(result.appreciation_6m * 100).toFixed(2)}%</div>
-            </div>
-            <div className="card">
-              <div className="label">12 Month Appreciation</div>
-              <div className="metric">{(result.appreciation_12m * 100).toFixed(2)}%</div>
-            </div>
-          </section>
+          <div className="chat">
+            {chat.length === 0 ? <div className="subtitle">No messages yet. Start with a quick prompt.</div> : null}
+            {chat.map((msg, idx) => (
+              <div key={idx} className={`msg ${msg.role}`}>
+                <b>{msg.role === "user" ? "You" : "Assistant"}:</b> {msg.content}
+              </div>
+            ))}
+          </div>
 
-          <section className="card grid" style={{ gap: 10 }}>
-            <h3 style={{ margin: 0 }}>AI Copilot (No API Key Needed)</h3>
-            <div className="row">
-              <button className="btn" onClick={() => askPreset("Why this recommendation?")}>Why this recommendation?</button>
-              <button className="btn" onClick={() => askPreset("What are the biggest risks?")}>What are the biggest risks?</button>
-              <button className="btn" onClick={() => askPreset("Is this overpriced or discounted?")}>Is this overpriced or discounted?</button>
-            </div>
-            <div className="chat">
-              {chat.length === 0 ? <div className="subtitle">Ask a question and I’ll explain the analysis in plain language.</div> : null}
-              {chat.map((msg, idx) => (
-                <div key={idx} className={`msg ${msg.role}`}>
-                  <b>{msg.role === "user" ? "You" : "ProphetAI Copilot"}:</b> {msg.content}
-                </div>
-              ))}
-            </div>
-            <div className="row">
-              <input className="input" style={{ flex: 1 }} value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask about any term or recommendation..." />
-              <button className="btn primary" onClick={askCustomQuestion}>Ask</button>
-            </div>
-          </section>
-        </>
-      ) : null}
+          <div className="row" style={{ marginTop: 10 }}>
+            <input
+              className="input"
+              style={{ flex: 1 }}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Ask about score, risk, terms..."
+            />
+            <button className="btn primary" onClick={askCustomQuestion}>Ask</button>
+          </div>
+        </div>
+      </aside>
     </main>
   );
 }
