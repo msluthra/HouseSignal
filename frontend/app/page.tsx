@@ -1,10 +1,38 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { quickExplain } from "../lib/copilot";
 import { ChatMessage, PredictionResult, PropertyPayload } from "../lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+type GoalMode = "Buy" | "Rent" | "Sell";
+
+type WatchlistItem = {
+  address: string;
+  score: number;
+  marketSignal: number;
+  label: string;
+};
+
+const MARKET_PROFILES = [
+  {
+    market: "San Jose",
+    type: "High-price tech core",
+    signal: 64,
+    rentYield: 3.4,
+    risk: 28,
+    takeaway: "Stronger appreciation story, tougher yield math.",
+  },
+  {
+    market: "Elk Grove",
+    type: "Middle-market suburb",
+    signal: 58,
+    rentYield: 5.1,
+    risk: 22,
+    takeaway: "Cleaner family-housing value and better income balance.",
+  },
+];
 
 const PRESETS: Record<string, PropertyPayload> = {
   "Starter Home": {
@@ -44,10 +72,27 @@ export default function Page() {
   });
   const [riskProfile, setRiskProfile] = useState("Balanced");
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const [previousResult, setPreviousResult] = useState<PredictionResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [chat, setChat] = useState<ChatMessage[]>([]);
+  const [goalMode, setGoalMode] = useState<GoalMode>("Buy");
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [downPaymentPct, setDownPaymentPct] = useState(20);
+  const [interestRate, setInterestRate] = useState(6.75);
+  const [loanYears, setLoanYears] = useState(30);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("housesignal-watchlist");
+    if (saved) {
+      setWatchlist(JSON.parse(saved) as WatchlistItem[]);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("housesignal-watchlist", JSON.stringify(watchlist));
+  }, [watchlist]);
 
   const labelColor = useMemo(() => {
     if (!result) return "#334155";
@@ -72,6 +117,7 @@ export default function Page() {
         throw new Error(`API error ${response.status}`);
       }
       const data = (await response.json()) as PredictionResult;
+      setPreviousResult(result);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to run analysis");
@@ -93,6 +139,54 @@ export default function Page() {
     setChat((prev) => [...prev, { role: "user", content: q }, { role: "assistant", content: assistant }]);
     setChatInput("");
   }
+
+  function saveToWatchlist() {
+    if (!result) return;
+    const item = {
+      address: result.address,
+      score: result.investment_score,
+      marketSignal: result.market_signal_score,
+      label: result.recommendation_label,
+    };
+    setWatchlist((prev) => [item, ...prev.filter((saved) => saved.address !== item.address)].slice(0, 6));
+  }
+
+  function getGoalDecision() {
+    if (!result) return "Run analysis";
+    if (goalMode === "Buy") return result.buy_decision;
+    if (goalMode === "Rent") return result.rent_decision;
+    return result.sell_decision;
+  }
+
+  const monthlyPayment = useMemo(() => {
+    const principal = form.list_price * (1 - downPaymentPct / 100);
+    const monthlyRate = interestRate / 100 / 12;
+    const months = loanYears * 12;
+    if (monthlyRate === 0) return principal / months;
+    return (principal * monthlyRate * (1 + monthlyRate) ** months) / ((1 + monthlyRate) ** months - 1);
+  }, [downPaymentPct, form.list_price, interestRate, loanYears]);
+
+  const rentCoverage = result ? (result.expected_monthly_rent / monthlyPayment) * 100 : 0;
+
+  const signalTimeline = useMemo(() => {
+    const current = result?.market_signal_score ?? 55;
+    return [
+      { label: "3mo ago", value: Math.max(0, current - 7) },
+      { label: "2mo ago", value: Math.max(0, current - 4) },
+      { label: "1mo ago", value: Math.max(0, current - 2) },
+      { label: "Today", value: current },
+    ];
+  }, [result]);
+
+  const changeSummary = useMemo(() => {
+    if (!result || !previousResult) return ["Run another analysis to compare changes."];
+    const deltas = [
+      `Score ${result.investment_score >= previousResult.investment_score ? "rose" : "fell"} by ${Math.abs(result.investment_score - previousResult.investment_score).toFixed(1)} points.`,
+      `Market signal ${result.market_signal_score >= previousResult.market_signal_score ? "improved" : "weakened"} by ${Math.abs(result.market_signal_score - previousResult.market_signal_score).toFixed(1)} points.`,
+      `Downside risk changed by ${Math.abs((result.downside_risk - previousResult.downside_risk) * 100).toFixed(1)} percentage points.`,
+    ];
+    return deltas;
+  }, [previousResult, result]);
 
   return (
     <main className="dashboard-shell">
@@ -121,12 +215,19 @@ export default function Page() {
                 <input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
               </div>
               <div>
-                <div className="label">Risk Profile</div>
-                <select className="input" value={riskProfile} onChange={(e) => setRiskProfile(e.target.value)}>
-                  <option>Conservative</option>
-                  <option>Balanced</option>
-                  <option>Aggressive</option>
-                </select>
+                <div className="label">Goal Mode</div>
+                <div className="segmented">
+                  {(["Buy", "Rent", "Sell"] as GoalMode[]).map((mode) => (
+                    <button
+                      className={goalMode === mode ? "segment active" : "segment"}
+                      key={mode}
+                      onClick={() => setGoalMode(mode)}
+                      type="button"
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -159,6 +260,15 @@ export default function Page() {
               />
             </div>
 
+            <div>
+              <div className="label">Risk Profile</div>
+              <select className="input" value={riskProfile} onChange={(e) => setRiskProfile(e.target.value)}>
+                <option>Conservative</option>
+                <option>Balanced</option>
+                <option>Aggressive</option>
+              </select>
+            </div>
+
             <button className="btn primary" type="submit" disabled={loading}>
               {loading ? "Running Analysis..." : "Run Analysis"}
             </button>
@@ -173,7 +283,27 @@ export default function Page() {
               <div className="metric" style={{ color: labelColor }}>
                 {result.recommendation_label.toUpperCase()}
               </div>
-              <p className="subtitle">Risk profile: {riskProfile}</p>
+              <p className="subtitle">Focused decision: {goalMode} - {getGoalDecision()}</p>
+              <button className="btn" onClick={saveToWatchlist}>Save To Watchlist</button>
+            </section>
+
+            <section className="grid four">
+              <div className="card">
+                <div className="label">Market Signal</div>
+                <div className="metric">{result.market_signal_score.toFixed(1)}</div>
+              </div>
+              <div className="card">
+                <div className="label">Buy Decision</div>
+                <div className="metric decision-text">{result.buy_decision}</div>
+              </div>
+              <div className="card">
+                <div className="label">Rent Decision</div>
+                <div className="metric decision-text">{result.rent_decision}</div>
+              </div>
+              <div className="card">
+                <div className="label">Sell Decision</div>
+                <div className="metric decision-text">{result.sell_decision}</div>
+              </div>
             </section>
 
             <section className="grid four">
@@ -208,6 +338,99 @@ export default function Page() {
                 <div className="label">12M Appreciation</div>
                 <div className="metric">{(result.appreciation_12m * 100).toFixed(2)}%</div>
               </div>
+            </section>
+
+            <section className="grid two-equal">
+              <div className="card">
+                <div className="label">Rent Recommendation</div>
+                <div className="metric decision-text">{result.rent_decision}</div>
+                <p className="subtitle">
+                  Estimated rent covers {rentCoverage.toFixed(0)}% of the modeled principal and interest payment.
+                </p>
+              </div>
+              <div className="card">
+                <div className="label">Affordability Calculator</div>
+                <div className="grid three compact-grid">
+                  <div>
+                    <div className="label">Down %</div>
+                    <input className="input" type="number" value={downPaymentPct} onChange={(e) => setDownPaymentPct(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <div className="label">Rate %</div>
+                    <input className="input" type="number" value={interestRate} onChange={(e) => setInterestRate(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <div className="label">Years</div>
+                    <input className="input" type="number" value={loanYears} onChange={(e) => setLoanYears(Number(e.target.value))} />
+                  </div>
+                </div>
+                <p className="subtitle">Payment estimate: ${monthlyPayment.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</p>
+              </div>
+            </section>
+
+            <section className="grid two-equal">
+              <div className="card">
+                <div className="label">Market Signal Timeline</div>
+                <div className="timeline">
+                  {signalTimeline.map((point) => (
+                    <div className="timeline-row" key={point.label}>
+                      <span>{point.label}</span>
+                      <div className="timeline-track">
+                        <div className="timeline-fill" style={{ width: `${point.value}%` }} />
+                      </div>
+                      <strong>{point.value.toFixed(1)}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="card">
+                <div className="label">What Changed?</div>
+                {changeSummary.map((line) => (
+                  <p className="subtitle" key={line}>{line}</p>
+                ))}
+              </div>
+            </section>
+
+            <section className="card">
+              <div className="label">Market Compare</div>
+              <div className="grid three">
+                {MARKET_PROFILES.map((market) => (
+                  <div className="compare-tile" key={market.market}>
+                    <strong>{market.market}</strong>
+                    <span>{market.type}</span>
+                    <span>Signal: {market.signal}/100</span>
+                    <span>Yield: {market.rentYield}%</span>
+                    <span>Risk: {market.risk}%</span>
+                    <p>{market.takeaway}</p>
+                  </div>
+                ))}
+                <div className="compare-tile highlight">
+                  <strong>This Property</strong>
+                  <span>{result.address}</span>
+                  <span>Signal: {result.market_signal_score.toFixed(1)}/100</span>
+                  <span>Yield: {(result.rental_yield * 100).toFixed(2)}%</span>
+                  <span>Risk: {(result.downside_risk * 100).toFixed(1)}%</span>
+                  <p>{result.recommendation_label}</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="card">
+              <div className="label">Deal Watchlist</div>
+              {watchlist.length === 0 ? (
+                <p className="subtitle">No saved deals yet.</p>
+              ) : (
+                <div className="watchlist">
+                  {watchlist.map((item) => (
+                    <div className="watch-row" key={item.address}>
+                      <span>{item.address}</span>
+                      <strong>{item.score.toFixed(1)}</strong>
+                      <span>{item.marketSignal.toFixed(1)}</span>
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           </>
         ) : (

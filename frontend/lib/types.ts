@@ -17,7 +17,11 @@ export type PredictionResult = {
   rental_yield: number;
   downside_risk: number;
   investment_score: number;
+  market_signal_score: number;
   recommendation_label: string;
+  buy_decision: string;
+  rent_decision: string;
+  sell_decision: string;
 };
 
 export type ChatMessage = {

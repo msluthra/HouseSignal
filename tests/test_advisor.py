@@ -28,15 +28,23 @@ def test_investment_advisor_evaluate_returns_expected_schema() -> None:
         "rental_yield",
         "downside_risk",
         "investment_score",
+        "market_signal_score",
         "recommendation_label",
+        "buy_decision",
+        "rent_decision",
+        "sell_decision",
     }
 
     assert set(result.keys()) == expected_keys
     assert result["address"] == payload.address
     assert isinstance(result["investment_score"], float)
+    assert isinstance(result["market_signal_score"], float)
     assert result["recommendation_label"] in {
         "strong buy",
         "buy with caution",
         "hold/monitor",
         "avoid",
     }
+    assert isinstance(result["buy_decision"], str)
+    assert isinstance(result["rent_decision"], str)
+    assert isinstance(result["sell_decision"], str)

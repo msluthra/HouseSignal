@@ -48,7 +48,11 @@ class PredictionResponse(BaseModel):
     rental_yield: float
     downside_risk: float
     investment_score: float
+    market_signal_score: float
     recommendation_label: str
+    buy_decision: str
+    rent_decision: str
+    sell_decision: str
 
 
 @app.get("/health")

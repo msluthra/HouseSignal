@@ -22,7 +22,23 @@ export function quickExplain(result: PredictionResult, question: string): string
   }
 
   if (q.includes("why") || q.includes("recommend")) {
-    return `This property is labeled ${result.recommendation_label} mainly due to score (${result.investment_score.toFixed(1)}), projected 12M appreciation (${(result.appreciation_12m * 100).toFixed(2)}%), and downside risk (${(result.downside_risk * 100).toFixed(1)}%).`;
+    return `This property is labeled ${result.recommendation_label} mainly due to score (${result.investment_score.toFixed(1)}), market signal (${result.market_signal_score.toFixed(1)}), projected 12M appreciation (${(result.appreciation_12m * 100).toFixed(2)}%), and downside risk (${(result.downside_risk * 100).toFixed(1)}%).`;
+  }
+
+  if (q.includes("buy")) {
+    return `Buy decision: ${result.buy_decision}. This weighs investment score, market signal, projected appreciation, yield, and downside risk.`;
+  }
+
+  if (q.includes("rent")) {
+    return `Rent decision: ${result.rent_decision}. This leans most on expected rent, rental yield, and risk signals.`;
+  }
+
+  if (q.includes("sell")) {
+    return `Sell decision: ${result.sell_decision}. Stronger market and investment scores usually argue against selling unless the offer is attractive.`;
+  }
+
+  if (q.includes("market signal")) {
+    return `Market signal is ${result.market_signal_score.toFixed(1)}/100. It summarizes momentum-style signals such as appreciation, yield strength, valuation discount, and downside risk.`;
   }
 
   if (q.includes("risk")) {

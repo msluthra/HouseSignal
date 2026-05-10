@@ -34,7 +34,11 @@ def test_predict_endpoint() -> None:
     assert response.status_code == 200
     assert body["address"] == "123 Main St, San Jose, CA"
     assert "investment_score" in body
+    assert "market_signal_score" in body
     assert "recommendation_label" in body
+    assert "buy_decision" in body
+    assert "rent_decision" in body
+    assert "sell_decision" in body
 
 
 def test_recommend_endpoint() -> None:
