@@ -1,34 +1,25 @@
 # HouseSignal
 
-HouseSignal is a full-stack real estate analytics app for comparing California housing markets and evaluating residential investment decisions. The current MVP focuses on San Jose, with Sacramento planned as the second pilot market.
+HouseSignal is a real estate analytics app for comparing California housing markets and evaluating residential property decisions.
 
-The app combines market data ingestion, backend scoring logic, and a web dashboard to help answer practical questions like:
-
-- Is this property priced fairly?
-- Is the market moving in a buyer-friendly or seller-friendly direction?
-- Does the deal look better as a buy, rent, sell, or hold decision?
-- What data is driving the recommendation?
-
-> Status: MVP. The app currently uses baseline scoring logic and model-ready dashboards. Real ML training is planned after the second city dataset is added.
+The MVP is focused on San Jose, with Sacramento planned as the second market. It ingests housing market data, scores property inputs, and shows the reasoning behind buy, rent, sell, or hold recommendations.
 
 ## Demo
 
-Live demo: coming soon.
+Coming soon.
 
-## Features
+## What It Does
 
-- Property analysis form for address, price, beds, baths, square footage, and neighborhood price per square foot
-- Fair value, appreciation, expected rent, yield, downside risk, and investment score outputs
-- Buy, rent, and sell recommendation labels
-- Market comparison dashboard for pilot cities
-- Zillow Market Explorer ingestion for monthly housing market metrics
-- Data freshness badge showing the latest ingested market record date
-- Model evaluation dashboard prepared for MAE, RMSE, R2, baseline comparison, and feature importance
-- Prediction audit section explaining how a recommendation is formed
-- Rule-based assistant panel for explaining real estate terms and recommendation logic
-- Backend tests for API behavior, advisor logic, and data contracts
+- Estimates fair value for a property
+- Forecasts 3, 6, and 12 month appreciation
+- Estimates expected monthly rent and rental yield
+- Calculates downside risk and an investment score
+- Produces buy, rent, sell, and hold-style recommendations
+- Tracks market data freshness
+- Shows model evaluation and feature-importance dashboards
+- Explains recommendation logic through a prediction audit panel
 
-## Tech Stack
+## Stack
 
 Frontend:
 
@@ -42,87 +33,51 @@ Backend:
 - FastAPI
 - Pydantic
 - SQLAlchemy
-- SQLite for local development
-- Uvicorn
+- SQLite
 
-Data and ML:
+Data / ML:
 
 - Pandas
 - NumPy
 - scikit-learn
 - XGBoost
-- Parquet files for processed and curated datasets
-- Zillow Market Explorer CSV ingestion
+- Parquet
+- Zillow Market Explorer data
 
 Testing:
 
 - Pytest
 - FastAPI TestClient
-- Data contract validation tests
-- Frontend production build checks
-
-## Project Structure
-
-```text
-frontend/              Next.js frontend
-src/api/               FastAPI routes
-src/advisor/           Recommendation orchestration
-src/models/            Forecasting, risk, and scoring modules
-src/valuation/         Fair value estimation
-src/ingestion/         Source-specific data loaders
-src/pipeline/          Raw-to-curated ingestion pipeline
-src/schemas/           Data contracts and validation helpers
-src/database/          SQLAlchemy connection and ORM models
-data/raw/              Source files dropped into the project
-data/processed/        Validated intermediate outputs
-data/curated/          Curated Parquet outputs and ingestion reports
-tests/                 Backend and ingestion tests
-scripts/               Local runner scripts
-```
 
 ## Data Pipeline
 
-HouseSignal uses an append-only ingestion approach. New source files are added to `data/raw/` and processed into curated datasets without deleting historical records.
+Source files are dropped into `data/raw/`, validated, normalized, written to curated Parquet files, and loaded into the database.
 
-Supported raw data folders:
-
-- `data/raw/zillow_market/` for Zillow Market Explorer exports
-- `data/raw/zillow/` for property-level Zillow-style records
-- `data/raw/redfin/` for market data
-- `data/raw/rent/` for rent observations
-- `data/raw/macro/` for macroeconomic data
-- `data/raw/firm/` for historical deal data
-
-The Zillow Market Explorer loader supports Zillow's UTF-16 tab-separated CSV exports and normalizes metrics such as:
+Current Zillow market metrics supported:
 
 - ZHVI
-- active listings
-- new listings
-- newly pending listings
-- days to pending
-- median list price
-- median sale price
-- sales count
-- sold above list
-- price cuts
-- total transaction value
+- Active listings
+- New listings
+- Newly pending listings
+- Days to pending
+- Median list price
+- Median sale price
+- Sales count
+- Sold above list
+- Price cuts
+- Total transaction value
 
-Running ingestion creates:
+The ingestion flow is append-only. New data is added without deleting historical records.
 
-- validated Parquet files in `data/processed/`
-- curated Parquet files in `data/curated/`
-- an ingestion report at `data/curated/ingestion_report.json`
-- database rows for supported sources
+## API Surface
 
-## API Endpoints
-
-Main endpoints:
+Core endpoints:
 
 - `GET /health`
 - `POST /predict`
 - `POST /recommend`
 
-Dashboard support endpoints:
+Dashboard endpoints:
 
 - `GET /data/freshness`
 - `GET /data/coverage`
@@ -130,29 +85,42 @@ Dashboard support endpoints:
 - `GET /analytics/market`
 - `GET /predictions/audit`
 
-## Development Status
+## Project Layout
 
-The app is currently being prepared for deployment. Local setup instructions are intentionally omitted from the main README to keep this page focused on the product, architecture, and project roadmap.
+```text
+frontend/        Next.js frontend
+src/api/         FastAPI routes
+src/advisor/     Recommendation logic
+src/models/      Forecasting, risk, and scoring modules
+src/valuation/   Fair value logic
+src/ingestion/   Source loaders
+src/pipeline/    Ingestion pipeline
+src/schemas/     Data contracts
+data/            Raw, processed, and curated data
+tests/           Backend and data tests
+scripts/         Project scripts
+```
 
-## Current Limitations
+## Current Status
 
-- The current recommendation engine uses baseline heuristics, not a trained production model.
-- ML evaluation metrics are dashboard-ready placeholders until San Jose and Sacramento data are both available.
-- The app does not currently provide live MLS listings.
-- RentCast/property-level enrichment is planned but should be cached because free API usage is limited.
-- SQLite is used for local development; Supabase/Postgres is planned for a hosted version.
+- Frontend dashboard is built
+- FastAPI backend is built
+- Zillow Market Explorer ingestion is working
+- San Jose market data is loaded locally
+- Data freshness and coverage dashboards are built
+- Model evaluation dashboard is scaffolded
+- Recommendation logic currently uses baseline heuristics
 
-## Roadmap
+## Next Steps
 
-- Add Sacramento Zillow Market Explorer exports
-- Build a two-city monthly training table
-- Train and evaluate appreciation/risk models
+- Add Sacramento Zillow market exports
+- Build the two-city monthly training table
+- Train appreciation and risk models
 - Replace baseline forecast logic with saved model artifacts
-- Add cached RentCast property and rent enrichment
-- Add property/listing map explorer if listing data is available
-- Move hosted data storage to Supabase/Postgres
-- Deploy frontend and backend
+- Add cached RentCast enrichment for property and rent details
+- Move hosted storage to Supabase/Postgres
+- Deploy the app
 
-## Disclaimer
+## Notes
 
-HouseSignal is a decision-support project and should not be treated as financial advice. Real estate decisions require additional due diligence, local market knowledge, and professional guidance.
+HouseSignal is a decision-support project, not financial advice. The current version is an MVP and the ML layer is still being built.
