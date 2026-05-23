@@ -150,6 +150,44 @@ class ZillowMarketMetric(Base, TimestampMixin):
     source_file: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
+class ZillowRentalMetric(Base, TimestampMixin):
+    """City or metro-level Zillow rental research time-series metric."""
+
+    __tablename__ = "zillow_rental_metrics"
+    __table_args__ = (
+        UniqueConstraint("region", "state", "region_type", "as_of_date", "metric", name="uq_zillow_rental_region_date_metric"),
+        CheckConstraint("value >= 0", name="zillow_rental_value_non_negative"),
+        Index("ix_zillow_rental_region_date", "region", "as_of_date"),
+        Index("ix_zillow_rental_metric_date", "metric", "as_of_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    region: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    state: Mapped[str] = mapped_column(String(2), nullable=False, default="CA", index=True)
+    region_type: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    as_of_date: Mapped[date] = mapped_column(Date, nullable=False)
+    metric: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    source_file: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
+class FredMacroMetric(Base, TimestampMixin):
+    """National macroeconomic time-series metric from FRED."""
+
+    __tablename__ = "fred_macro_metrics"
+    __table_args__ = (
+        UniqueConstraint("as_of_date", "metric", name="uq_fred_macro_date_metric"),
+        CheckConstraint("value >= 0", name="fred_macro_value_non_negative"),
+        Index("ix_fred_macro_metric_date", "metric", "as_of_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    as_of_date: Mapped[date] = mapped_column(Date, nullable=False)
+    metric: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    source_file: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
 class RentRecord(Base, TimestampMixin):
     """Historical rent observations for a property."""
 

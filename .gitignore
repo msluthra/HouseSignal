@@ -21,7 +21,14 @@ data/raw/**/*
 !data/raw/**/
 data/processed/*
 data/curated/*
+data/training/*
+artifacts/models/*
 !data/raw/.gitkeep
 !data/raw/**/.gitkeep
 !data/processed/.gitkeep
 !data/curated/.gitkeep
+!data/training/.gitkeep
+!artifacts/.gitkeep
+!artifacts/models/.gitkeep
+!artifacts/reports/.gitkeep
+!artifacts/reports/*.json

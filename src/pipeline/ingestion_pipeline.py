@@ -13,12 +13,12 @@ from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from src.database.connection import init_db, session_scope
-from src.database.models import FirmData, MarketFeature, Property, RentRecord, ZillowMarketMetric
+from src.database.models import FirmData, FredMacroMetric, MarketFeature, Property, RentRecord, ZillowMarketMetric, ZillowRentalMetric
 from src.ingestion.firm_data_loader import load_firm_deal_history
-from src.ingestion.macro_loader import load_macro_data
+from src.ingestion.macro_loader import load_fred_macro_data, load_macro_data
 from src.ingestion.redfin_loader import load_redfin_market_data
 from src.ingestion.rent_loader import load_rent_data
-from src.ingestion.zillow_loader import load_zillow_market_explorer_data, load_zillow_property_data
+from src.ingestion.zillow_loader import load_zillow_market_explorer_data, load_zillow_property_data, load_zillow_rental_data
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,14 @@ class IngestionPipeline:
                 load_zillow_market_explorer_data,
                 ["region", "state", "as_of_date", "metric"],
             ),
+            SourceConfig(
+                "zillow_rentals",
+                self.raw_root / "zillow_rentals",
+                load_zillow_rental_data,
+                ["region", "state", "region_type", "as_of_date", "metric"],
+            ),
             SourceConfig("rent", self.raw_root / "rent", load_rent_data, ["address", "zip_code", "as_of_date"]),
+            SourceConfig("fred", self.raw_root / "fred", load_fred_macro_data, ["as_of_date", "metric"]),
             SourceConfig("macro", self.raw_root / "macro", load_macro_data, ["geo_key", "as_of_date"]),
             SourceConfig("firm", self.raw_root / "firm", load_firm_deal_history, ["deal_id"]),
         ]
@@ -100,6 +107,8 @@ class IngestionPipeline:
             "macro": ["as_of_date"],
             "firm": ["exit_date", "purchase_date"],
             "zillow_market": ["as_of_date"],
+            "zillow_rentals": ["as_of_date"],
+            "fred": ["as_of_date"],
         }
         for column in date_columns.get(source_name, []):
             if column not in curated_df.columns:
@@ -249,6 +258,61 @@ class IngestionPipeline:
             )
         return len(rows)
 
+    def _load_zillow_rentals(self, curated_rentals: pd.DataFrame) -> int:
+        if curated_rentals.empty:
+            return 0
+
+        rows = []
+        for record in curated_rentals.to_dict(orient="records"):
+            rows.append(
+                {
+                    "region": str(record["region"]),
+                    "state": str(record["state"]).upper(),
+                    "region_type": str(record["region_type"]),
+                    "as_of_date": record["as_of_date"],
+                    "metric": str(record["metric"]),
+                    "value": float(record["value"]),
+                    "source_file": str(record["source_file"]) if pd.notna(record.get("source_file")) else None,
+                    "updated_at": datetime.utcnow(),
+                }
+            )
+
+        with session_scope() as session:
+            self._upsert_sqlite(
+                session,
+                ZillowRentalMetric,
+                rows,
+                conflict_cols=["region", "state", "region_type", "as_of_date", "metric"],
+                update_cols=["value", "source_file", "updated_at"],
+            )
+        return len(rows)
+
+    def _load_fred_macro(self, curated_fred: pd.DataFrame) -> int:
+        if curated_fred.empty:
+            return 0
+
+        rows = []
+        for record in curated_fred.to_dict(orient="records"):
+            rows.append(
+                {
+                    "as_of_date": record["as_of_date"],
+                    "metric": str(record["metric"]),
+                    "value": float(record["value"]),
+                    "source_file": str(record["source_file"]) if pd.notna(record.get("source_file")) else None,
+                    "updated_at": datetime.utcnow(),
+                }
+            )
+
+        with session_scope() as session:
+            self._upsert_sqlite(
+                session,
+                FredMacroMetric,
+                rows,
+                conflict_cols=["as_of_date", "metric"],
+                update_cols=["value", "source_file", "updated_at"],
+            )
+        return len(rows)
+
     def _load_market_features(self, curated_redfin: pd.DataFrame, curated_macro: pd.DataFrame) -> int:
         with session_scope() as session:
             properties = session.execute(select(Property.id, Property.zip_code)).all()
@@ -336,6 +400,8 @@ class IngestionPipeline:
         database_report = {
             "properties_upserted": self._load_properties(curated["zillow"]),
             "zillow_market_metrics_upserted": self._load_zillow_market(curated["zillow_market"]),
+            "zillow_rental_metrics_upserted": self._load_zillow_rentals(curated["zillow_rentals"]),
+            "fred_macro_metrics_upserted": self._load_fred_macro(curated["fred"]),
             "firm_deals_upserted": self._load_firm_data(curated["firm"]),
             "rents_upserted": self._load_rent(curated["rent"]),
             "market_features_upserted": self._load_market_features(curated["redfin"], curated["macro"]),

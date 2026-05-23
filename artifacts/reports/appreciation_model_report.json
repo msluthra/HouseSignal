@@ -1,0 +1,110 @@
+{
+  "target": "target_appreciation_12m",
+  "feature_columns": [
+    "zhvi",
+    "median_sale_price",
+    "median_list_price",
+    "active_listings",
+    "new_listings",
+    "newly_pending_listings",
+    "sales_count",
+    "days_to_pending",
+    "share_sold_above_list",
+    "share_listings_price_cut",
+    "total_transaction_value",
+    "zhvi_mom",
+    "zhvi_yoy",
+    "median_sale_price_yoy",
+    "median_list_price_yoy",
+    "active_listings_yoy",
+    "new_listings_yoy",
+    "sales_count_yoy",
+    "days_to_pending_yoy",
+    "share_sold_above_list_yoy",
+    "share_listings_price_cut_yoy",
+    "zori_all_city",
+    "zori_all_city_sa",
+    "zori_sfr_metro",
+    "zori_sfr_metro_sa",
+    "zordi_all_metro",
+    "zordi_sfr_metro",
+    "zori_all_city_yoy",
+    "zori_sfr_metro_yoy",
+    "zordi_all_metro_yoy",
+    "zordi_sfr_metro_yoy",
+    "mortgage_rate_30y",
+    "fed_funds_rate",
+    "treasury_10y",
+    "cpi_index",
+    "cpi_yoy",
+    "rate_spread_30y_10y",
+    "mortgage_rate_change_3m",
+    "mortgage_rate_change_12m"
+  ],
+  "row_count": 94,
+  "train_rows": 74,
+  "test_rows": 20,
+  "train_start": "2021-06-30",
+  "train_end": "2024-06-30",
+  "test_start": "2024-07-31",
+  "test_end": "2025-04-30",
+  "baseline_name": "current_zhvi_yoy",
+  "baseline": {
+    "mae": 0.06352876266445352,
+    "rmse": 0.07085846786451788,
+    "r2": -325.72284843908824
+  },
+  "models": {
+    "linear_regression": {
+      "mae": 0.038960957800085995,
+      "rmse": 0.04846989718681225,
+      "r2": -151.8763089511109
+    },
+    "random_forest": {
+      "mae": 0.05189873385922826,
+      "rmse": 0.05726061781923503,
+      "r2": -212.35756720213158
+    },
+    "gradient_boosting": {
+      "mae": 0.04637798153065538,
+      "rmse": 0.05056758792184879,
+      "r2": -165.3950750889223
+    }
+  },
+  "best_model": "linear_regression",
+  "model_path": "artifacts/models/appreciation_12m_model.joblib",
+  "feature_importance": [
+    {
+      "feature": "zori_sfr_metro_sa",
+      "importance": 0.3139872569585833
+    },
+    {
+      "feature": "zori_all_city_sa",
+      "importance": 0.251833562226325
+    },
+    {
+      "feature": "zori_sfr_metro",
+      "importance": 0.14235239072709466
+    },
+    {
+      "feature": "zhvi",
+      "importance": 0.05225487194755714
+    },
+    {
+      "feature": "zori_all_city",
+      "importance": 0.042321432636065914
+    },
+    {
+      "feature": "cpi_index",
+      "importance": 0.029154661630444282
+    },
+    {
+      "feature": "zordi_sfr_metro",
+      "importance": 0.022275559504141916
+    },
+    {
+      "feature": "zordi_all_metro",
+      "importance": 0.02033431976358464
+    }
+  ]
+}

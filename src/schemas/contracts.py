@@ -59,6 +59,31 @@ class ZillowMarketMetricRecord(BaseModel):
     source_file: str | None = None
 
 
+class ZillowRentalMetricRecord(BaseModel):
+    """Canonical Zillow rental research metric row."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    region: str
+    state: str = "CA"
+    region_type: str
+    as_of_date: date
+    metric: str
+    value: float = Field(ge=0)
+    source_file: str | None = None
+
+
+class FredMacroMetricRecord(BaseModel):
+    """Canonical FRED macroeconomic metric row."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    as_of_date: date
+    metric: str
+    value: float = Field(ge=0)
+    source_file: str | None = None
+
+
 class RentRecord(BaseModel):
     """Canonical rent observation row."""
 

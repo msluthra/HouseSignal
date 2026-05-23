@@ -9,14 +9,18 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 
 from config.settings import settings
 from src.advisor.investment_advisor import InvestmentAdvisor, PropertyInput
+from src.database.connection import session_scope
+from src.database.models import ZillowMarketMetric
 
 app = FastAPI(title="HouseSignal API", version="0.1.0")
 advisor = InvestmentAdvisor()
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 INGESTION_REPORT_PATH = PROJECT_ROOT / "data" / "curated" / "ingestion_report.json"
+MODEL_REPORT_PATH = PROJECT_ROOT / "artifacts" / "reports" / "appreciation_model_report.json"
 
 allowed_origins = [origin.strip() for origin in settings.frontend_origins.split(",") if origin.strip()]
 app.add_middleware(
@@ -157,6 +161,24 @@ def _load_ingestion_report() -> dict[str, Any]:
     return json.loads(INGESTION_REPORT_PATH.read_text(encoding="utf-8"))
 
 
+def _load_model_report() -> dict[str, Any]:
+    if not MODEL_REPORT_PATH.exists():
+        return {}
+    return json.loads(MODEL_REPORT_PATH.read_text(encoding="utf-8"))
+
+
+def _format_pct(value: float | None) -> str:
+    if value is None:
+        return "TBD"
+    return f"{value * 100:.2f}%"
+
+
+def _format_r2(value: float | None) -> str:
+    if value is None:
+        return "TBD"
+    return f"{value:.3f}"
+
+
 @app.get("/data/freshness", response_model=DataFreshnessResponse)
 def data_freshness() -> DataFreshnessResponse:
     """Return the latest ingestion freshness metadata for user transparency."""
@@ -192,60 +214,107 @@ def model_evaluation() -> ModelEvaluationResponse:
     The current MVP uses baseline heuristics; this endpoint becomes real model
     telemetry once the San Jose and Sacramento training set is complete.
     """
+    report = _load_model_report()
+    if not report:
+        return ModelEvaluationResponse(
+            status="baseline_ready",
+            target="12-month appreciation",
+            model_name="Gradient Boosting Regressor (planned)",
+            training_window="San Jose and Sacramento market history loaded; training table pending",
+            test_window="Pending time-based holdout",
+            metrics=[
+                ModelMetric(label="MAE", value="TBD", helper="Will report average absolute forecast error."),
+                ModelMetric(label="RMSE", value="TBD", helper="Will penalize larger appreciation misses."),
+                ModelMetric(label="R2", value="TBD", helper="Will show variance explained versus the test set."),
+            ],
+            baseline=[
+                ModelMetric(label="Naive Baseline", value="Last 12M trend", helper="Model must beat this before replacing heuristics."),
+                ModelMetric(label="Current Engine", value="Heuristic", helper="Used until trained artifacts are validated."),
+            ],
+            feature_importance=[
+                FeatureImportance(feature="ZHVI YoY Growth", importance=0.24),
+                FeatureImportance(feature="Price Cut Share", importance=0.18),
+                FeatureImportance(feature="Days To Pending", importance=0.16),
+                FeatureImportance(feature="Sold Above List Share", importance=0.15),
+                FeatureImportance(feature="Active Listings", importance=0.12),
+            ],
+            notes="This is an evaluation-ready dashboard. Real metrics will populate after the two-city market data is converted into a training table and models are trained.",
+        )
+
+    best_model = report["best_model"]
+    model_metrics = report["models"][best_model]
+    baseline_metrics = report["baseline"]
+    model_beats_baseline = model_metrics["rmse"] < baseline_metrics["rmse"]
+    notes = (
+        "First experimental model trained on San Jose and Sacramento Zillow market plus rental history. "
+        "It beats the current ZHVI YoY baseline on RMSE, but should still be validated with more data before replacing recommendation logic."
+        if model_beats_baseline
+        else "First experimental model trained on San Jose and Sacramento Zillow history. The baseline currently performs better, so the model is not promoted into recommendation logic yet."
+    )
     return ModelEvaluationResponse(
-        status="baseline_ready",
-        target="12-month appreciation",
-        model_name="Gradient Boosting Regressor (planned)",
-        training_window="Pending Sacramento market history",
-        test_window="Pending time-based holdout",
+        status="trained_experimental",
+        target=report["target"].replace("_", " "),
+        model_name=best_model.replace("_", " ").title(),
+        training_window=f"{report['train_start']} to {report['train_end']} ({report['train_rows']} rows)",
+        test_window=f"{report['test_start']} to {report['test_end']} ({report['test_rows']} rows)",
         metrics=[
-            ModelMetric(label="MAE", value="TBD", helper="Will report average absolute forecast error."),
-            ModelMetric(label="RMSE", value="TBD", helper="Will penalize larger appreciation misses."),
-            ModelMetric(label="R2", value="TBD", helper="Will show variance explained versus the test set."),
+            ModelMetric(label="MAE", value=_format_pct(model_metrics["mae"]), helper="Average absolute 12M appreciation forecast error."),
+            ModelMetric(label="RMSE", value=_format_pct(model_metrics["rmse"]), helper="Error metric that penalizes larger misses."),
+            ModelMetric(label="R2", value=_format_r2(model_metrics["r2"]), helper="Time-based holdout fit versus actual appreciation."),
         ],
         baseline=[
-            ModelMetric(label="Naive Baseline", value="Last 12M trend", helper="Model must beat this before replacing heuristics."),
-            ModelMetric(label="Current Engine", value="Heuristic", helper="Used until trained artifacts are validated."),
+            ModelMetric(label=report.get("baseline_name", "baseline"), value=_format_pct(baseline_metrics["rmse"]), helper="Baseline RMSE for comparison."),
+            ModelMetric(label="Best trained model", value=_format_pct(model_metrics["rmse"]), helper="Model RMSE on the same holdout window."),
         ],
         feature_importance=[
-            FeatureImportance(feature="ZHVI YoY Growth", importance=0.24),
-            FeatureImportance(feature="Price Cut Share", importance=0.18),
-            FeatureImportance(feature="Days To Pending", importance=0.16),
-            FeatureImportance(feature="Sold Above List Share", importance=0.15),
-            FeatureImportance(feature="Active Listings", importance=0.12),
+            FeatureImportance(feature=str(item["feature"]).replace("_", " ").title(), importance=float(item["importance"]))
+            for item in report.get("feature_importance", [])
         ],
-        notes="This is an evaluation-ready dashboard. Real metrics will populate after two-city data is merged and models are trained.",
+        notes=notes,
     )
+
+
+def _market_coverage_by_city() -> dict[str, dict[str, Any]]:
+    """Summarize Zillow market rows by city from the local database."""
+    with session_scope() as session:
+        rows = session.execute(
+            select(
+                ZillowMarketMetric.region,
+                func.count(ZillowMarketMetric.id),
+                func.count(func.distinct(ZillowMarketMetric.metric)),
+                func.max(ZillowMarketMetric.as_of_date),
+            ).group_by(ZillowMarketMetric.region)
+        ).all()
+
+    return {
+        str(region): {
+            "market_rows": int(row_count or 0),
+            "metrics_loaded": int(metric_count or 0),
+            "latest_record_date": latest.isoformat() if latest else None,
+        }
+        for region, row_count, metric_count, latest in rows
+    }
 
 
 @app.get("/data/coverage", response_model=DataCoverageResponse)
 def data_coverage() -> DataCoverageResponse:
     """Return data coverage and missing-source summary."""
     report = _load_ingestion_report()
-    market_source = report.get("sources", {}).get("zillow_market", {})
-    latest = report.get("latest_record_dates", {}).get("zillow_market")
-    san_jose_rows = int(market_source.get("rows_curated", 0) or 0)
+    market_coverage = _market_coverage_by_city()
     cities = [
         DataCoverageCity(
-            city="San Jose",
-            market_rows=san_jose_rows,
-            metrics_loaded=11 if san_jose_rows else 0,
-            latest_record_date=latest,
-            status="loaded" if san_jose_rows else "waiting",
-        ),
-        DataCoverageCity(
-            city="Sacramento",
-            market_rows=0,
-            metrics_loaded=0,
-            latest_record_date=None,
-            status="waiting for Zillow exports",
-        ),
+            city=city,
+            market_rows=summary["market_rows"],
+            metrics_loaded=summary["metrics_loaded"],
+            latest_record_date=summary["latest_record_date"],
+            status="loaded" if summary["market_rows"] else "waiting",
+        )
+        for city, summary in sorted(market_coverage.items())
     ]
     return DataCoverageResponse(
         retention_policy=report.get("retention_policy", "append-only"),
         cities=cities,
         missing_next=[
-            "Sacramento Zillow Market Explorer exports",
             "RentCast cached property/rent enrichment",
             "FRED mortgage-rate and macro indicators",
         ],
@@ -267,11 +336,11 @@ def market_analytics() -> MarketAnalyticsResponse:
             ),
             MarketAnalyticsCity(
                 city="Sacramento",
-                signal=0,
-                price_momentum="Waiting for Zillow exports",
-                buyer_leverage="Waiting for Zillow exports",
-                risk_level="Pending",
-                takeaway="This card will activate once Sacramento data is ingested.",
+                signal=58,
+                price_momentum="Middle-market trend base with stronger affordability than San Jose",
+                buyer_leverage="Better entry-price leverage, with market pressure measured through listings and price cuts",
+                risk_level="Medium",
+                takeaway="Best framed as the more affordable pilot market for comparison.",
             ),
         ],
         methodology="Combines ZHVI, sale/list prices, active listings, new listings, days to pending, price cuts, and sold-above-list share.",
