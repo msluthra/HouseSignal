@@ -11,6 +11,10 @@ The app combines market data ingestion, backend scoring logic, and a web dashboa
 
 > Status: MVP. The app currently uses baseline scoring logic and model-ready dashboards. Real ML training is planned after the second city dataset is added.
 
+## Demo
+
+Live demo: coming soon.
+
 ## Features
 
 - Property analysis form for address, price, beds, baths, square footage, and neighborhood price per square foot
@@ -126,59 +130,9 @@ Dashboard support endpoints:
 - `GET /analytics/market`
 - `GET /predictions/audit`
 
-## Running Locally
+## Development Status
 
-Install Python dependencies:
-
-```bash
-pip3 install -r requirements.txt
-```
-
-Run the backend:
-
-```bash
-python3 scripts/run_local.py --reload
-```
-
-Run the frontend:
-
-```bash
-cd frontend
-npm install
-cp .env.local.example .env.local
-npm run dev
-```
-
-Local URLs:
-
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:8000`
-- API docs: `http://localhost:8000/docs`
-
-## Running Ingestion
-
-Add source files into the matching `data/raw/` folder, then run:
-
-```bash
-python3 scripts/run_ingestion.py
-```
-
-The ingestion report records source row counts, latest available record dates, and the append-only refresh policy used by the frontend freshness badge.
-
-## Testing
-
-Run backend tests:
-
-```bash
-python3 -m pytest -q
-```
-
-Run the frontend production build:
-
-```bash
-cd frontend
-npm run build
-```
+The app is currently being prepared for deployment. Local setup instructions are intentionally omitted from the main README to keep this page focused on the product, architecture, and project roadmap.
 
 ## Current Limitations
 
