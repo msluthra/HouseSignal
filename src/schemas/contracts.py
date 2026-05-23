@@ -44,6 +44,21 @@ class ZillowPropertyRecord(BaseModel):
     list_price: float = Field(gt=0)
 
 
+class ZillowMarketMetricRecord(BaseModel):
+    """Canonical Zillow Market Explorer metric row."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    region: str
+    state: str = "CA"
+    as_of_date: date
+    metric: str
+    value: float = Field(ge=0)
+    mom_change: float | None = None
+    yoy_change: float | None = None
+    source_file: str | None = None
+
+
 class RentRecord(BaseModel):
     """Canonical rent observation row."""
 

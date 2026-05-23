@@ -2,7 +2,16 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { quickExplain } from "../lib/copilot";
-import { ChatMessage, PredictionResult, PropertyPayload } from "../lib/types";
+import {
+  ChatMessage,
+  DataCoverage,
+  DataFreshness,
+  MarketAnalytics,
+  ModelEvaluation,
+  PredictionAudit,
+  PredictionResult,
+  PropertyPayload,
+} from "../lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -82,6 +91,17 @@ export default function Page() {
   const [downPaymentPct, setDownPaymentPct] = useState(20);
   const [interestRate, setInterestRate] = useState(6.75);
   const [loanYears, setLoanYears] = useState(30);
+  const [modelEvaluation, setModelEvaluation] = useState<ModelEvaluation | null>(null);
+  const [dataCoverage, setDataCoverage] = useState<DataCoverage | null>(null);
+  const [marketAnalytics, setMarketAnalytics] = useState<MarketAnalytics | null>(null);
+  const [predictionAudit, setPredictionAudit] = useState<PredictionAudit | null>(null);
+  const [freshness, setFreshness] = useState<DataFreshness>({
+    status: "not_loaded",
+    label: "Data freshness: demo estimates, no ingested market files yet",
+    last_refresh_at: null,
+    latest_record_dates: {},
+    retention_policy: "append-only",
+  });
 
   useEffect(() => {
     const saved = window.localStorage.getItem("housesignal-watchlist");
@@ -93,6 +113,33 @@ export default function Page() {
   useEffect(() => {
     window.localStorage.setItem("housesignal-watchlist", JSON.stringify(watchlist));
   }, [watchlist]);
+
+  useEffect(() => {
+    async function loadDashboards() {
+      try {
+        const [freshnessResponse, evaluationResponse, coverageResponse, analyticsResponse, auditResponse] = await Promise.all([
+          fetch(`${API_BASE}/data/freshness`),
+          fetch(`${API_BASE}/models/evaluation`),
+          fetch(`${API_BASE}/data/coverage`),
+          fetch(`${API_BASE}/analytics/market`),
+          fetch(`${API_BASE}/predictions/audit`),
+        ]);
+
+        if (freshnessResponse.ok) setFreshness((await freshnessResponse.json()) as DataFreshness);
+        if (evaluationResponse.ok) setModelEvaluation((await evaluationResponse.json()) as ModelEvaluation);
+        if (coverageResponse.ok) setDataCoverage((await coverageResponse.json()) as DataCoverage);
+        if (analyticsResponse.ok) setMarketAnalytics((await analyticsResponse.json()) as MarketAnalytics);
+        if (auditResponse.ok) setPredictionAudit((await auditResponse.json()) as PredictionAudit);
+      } catch {
+        setFreshness((current) => ({
+          ...current,
+          label: "Data freshness: backend unavailable",
+        }));
+      }
+    }
+
+    loadDashboards();
+  }, []);
 
   const labelColor = useMemo(() => {
     if (!result) return "#334155";
@@ -274,6 +321,113 @@ export default function Page() {
             </button>
             {error ? <div className="error-text">{error}</div> : null}
           </form>
+        </section>
+
+        <section className="card product-dashboard">
+          <div className="section-heading">
+            <div>
+              <div className="label">ML Readiness</div>
+              <h2>Model Evaluation Dashboard</h2>
+            </div>
+            <span className="status-pill">{modelEvaluation?.status.replace("_", " ") ?? "loading"}</span>
+          </div>
+          <p className="subtitle">
+            {modelEvaluation?.notes ?? "Loading model evaluation structure..."}
+          </p>
+          <div className="grid three">
+            {(modelEvaluation?.metrics ?? []).map((metric) => (
+              <div className="insight-tile" key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+                <p>{metric.helper}</p>
+              </div>
+            ))}
+          </div>
+          <div className="grid two-equal">
+            <div className="mini-panel">
+              <div className="label">Target + Split</div>
+              <p><strong>{modelEvaluation?.target ?? "Pending"}</strong></p>
+              <p>Train: {modelEvaluation?.training_window ?? "Pending"}</p>
+              <p>Test: {modelEvaluation?.test_window ?? "Pending"}</p>
+            </div>
+            <div className="mini-panel">
+              <div className="label">Baseline Comparison</div>
+              {(modelEvaluation?.baseline ?? []).map((item) => (
+                <p key={item.label}><strong>{item.label}:</strong> {item.value} - {item.helper}</p>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid two-equal">
+          <div className="card">
+            <div className="label">Feature Importance</div>
+            <h2>What The Model Will Learn From</h2>
+            <div className="importance-list">
+              {(modelEvaluation?.feature_importance ?? []).map((feature) => (
+                <div className="importance-row" key={feature.feature}>
+                  <span>{feature.feature}</span>
+                  <div className="importance-track">
+                    <div className="importance-fill" style={{ width: `${feature.importance * 100}%` }} />
+                  </div>
+                  <strong>{Math.round(feature.importance * 100)}%</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <div className="label">Data Coverage</div>
+            <h2>City Readiness</h2>
+            <div className="coverage-list">
+              {(dataCoverage?.cities ?? []).map((city) => (
+                <div className="coverage-row" key={city.city}>
+                  <div>
+                    <strong>{city.city}</strong>
+                    <p>{city.status}</p>
+                  </div>
+                  <span>{city.market_rows.toLocaleString()} rows</span>
+                  <span>{city.metrics_loaded} metrics</span>
+                  <span>{city.latest_record_date ?? "pending"}</span>
+                </div>
+              ))}
+            </div>
+            <p className="subtitle">Next data needed: {(dataCoverage?.missing_next ?? []).join(", ") || "loading..."}</p>
+          </div>
+        </section>
+
+        <section className="grid two-equal">
+          <div className="card">
+            <div className="label">Market Analytics</div>
+            <h2>Signal Board</h2>
+            <div className="grid compact-grid">
+              {(marketAnalytics?.cities ?? []).map((city) => (
+                <div className="signal-card" key={city.city}>
+                  <div>
+                    <strong>{city.city}</strong>
+                    <p>{city.takeaway}</p>
+                  </div>
+                  <div className="signal-score">{city.signal ? city.signal.toFixed(0) : "--"}</div>
+                  <span>{city.price_momentum}</span>
+                  <span>{city.buyer_leverage}</span>
+                  <span>Risk: {city.risk_level}</span>
+                </div>
+              ))}
+            </div>
+            <p className="subtitle">{marketAnalytics?.methodology}</p>
+          </div>
+          <div className="card">
+            <div className="label">Prediction Audit</div>
+            <h2>How A Recommendation Is Built</h2>
+            <div className="audit-list">
+              {(predictionAudit?.stages ?? []).map((stage) => (
+                <div className="audit-row" key={stage.step}>
+                  <strong>{stage.step}</strong>
+                  <p>{stage.signal}</p>
+                </div>
+              ))}
+            </div>
+            <p className="subtitle">{predictionAudit?.caveat}</p>
+          </div>
         </section>
 
         {result ? (
@@ -476,6 +630,12 @@ export default function Page() {
           </div>
         </div>
       </aside>
+
+      <div className="freshness-badge" aria-label="Data freshness">
+        <strong>{freshness.status === "loaded" ? "Live Data" : "MVP Data"}</strong>
+        <span>{freshness.label}</span>
+        <em>Refresh policy: {freshness.retention_policy}</em>
+      </div>
     </main>
   );
 }

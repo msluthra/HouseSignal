@@ -7,7 +7,7 @@ import pytest
 
 from src.ingestion.firm_data_loader import load_firm_deal_history
 from src.ingestion.redfin_loader import load_redfin_market_data
-from src.ingestion.zillow_loader import load_zillow_property_data
+from src.ingestion.zillow_loader import load_zillow_market_explorer_data, load_zillow_property_data
 from src.schemas import DataContractError
 
 
@@ -56,6 +56,30 @@ def test_zillow_contract_rejects_bad_values(tmp_path) -> None:
 
     with pytest.raises(DataContractError):
         load_zillow_property_data(str(file_path))
+
+
+def test_zillow_market_explorer_utf16_export_loads(tmp_path) -> None:
+    df = pd.DataFrame(
+        [
+            {
+                "date": "4/30/2026",
+                "metric": "ZHVI",
+                "datavalue": "1,500,000",
+                "mom": "1.25%",
+                "yoy": "4.50%",
+            }
+        ]
+    )
+    file_path = tmp_path / "zhv.csv"
+    df.to_csv(file_path, sep="\t", encoding="utf-16", index=False)
+
+    validated = load_zillow_market_explorer_data(str(file_path), region_name="San Jose")
+
+    assert len(validated) == 1
+    assert validated.loc[0, "metric"] == "ZHVI"
+    assert validated.loc[0, "value"] == 1500000
+    assert validated.loc[0, "mom_change"] == 0.0125
+    assert validated.loc[0, "yoy_change"] == 0.045
 
 
 def test_firm_contract_accepts_valid_csv(tmp_path) -> None:

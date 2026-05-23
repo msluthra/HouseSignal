@@ -28,3 +28,53 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+export type DataFreshness = {
+  status: string;
+  label: string;
+  last_refresh_at: string | null;
+  latest_record_dates: Record<string, string | null>;
+  retention_policy: string;
+};
+
+export type ModelEvaluation = {
+  status: string;
+  target: string;
+  model_name: string;
+  training_window: string;
+  test_window: string;
+  last_trained_at: string | null;
+  metrics: { label: string; value: string; helper: string }[];
+  baseline: { label: string; value: string; helper: string }[];
+  feature_importance: { feature: string; importance: number }[];
+  notes: string;
+};
+
+export type DataCoverage = {
+  retention_policy: string;
+  cities: {
+    city: string;
+    market_rows: number;
+    metrics_loaded: number;
+    latest_record_date: string | null;
+    status: string;
+  }[];
+  missing_next: string[];
+};
+
+export type MarketAnalytics = {
+  cities: {
+    city: string;
+    signal: number;
+    price_momentum: string;
+    buyer_leverage: string;
+    risk_level: string;
+    takeaway: string;
+  }[];
+  methodology: string;
+};
+
+export type PredictionAudit = {
+  stages: { step: string; signal: string }[];
+  caveat: string;
+};

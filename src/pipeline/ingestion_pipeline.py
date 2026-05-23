@@ -6,19 +6,19 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from src.database.connection import init_db, session_scope
-from src.database.models import FirmData, MarketFeature, Property, RentRecord
+from src.database.models import FirmData, MarketFeature, Property, RentRecord, ZillowMarketMetric
 from src.ingestion.firm_data_loader import load_firm_deal_history
 from src.ingestion.macro_loader import load_macro_data
 from src.ingestion.redfin_loader import load_redfin_market_data
 from src.ingestion.rent_loader import load_rent_data
-from src.ingestion.zillow_loader import load_zillow_property_data
+from src.ingestion.zillow_loader import load_zillow_market_explorer_data, load_zillow_property_data
 
 
 @dataclass(frozen=True)
@@ -46,6 +46,12 @@ class IngestionPipeline:
         self.sources = [
             SourceConfig("redfin", self.raw_root / "redfin", load_redfin_market_data, ["region", "region_type", "period_end"]),
             SourceConfig("zillow", self.raw_root / "zillow", load_zillow_property_data, ["address", "zip_code"]),
+            SourceConfig(
+                "zillow_market",
+                self.raw_root / "zillow_market",
+                load_zillow_market_explorer_data,
+                ["region", "state", "as_of_date", "metric"],
+            ),
             SourceConfig("rent", self.raw_root / "rent", load_rent_data, ["address", "zip_code", "as_of_date"]),
             SourceConfig("macro", self.raw_root / "macro", load_macro_data, ["geo_key", "as_of_date"]),
             SourceConfig("firm", self.raw_root / "firm", load_firm_deal_history, ["deal_id"]),
@@ -84,6 +90,24 @@ class IngestionPipeline:
             "rows_processed": len(processed_df),
             "rows_curated": len(curated_df),
         }
+
+    @staticmethod
+    def _latest_record_date(source_name: str, curated_df: pd.DataFrame) -> str | None:
+        """Return the newest source-record date for freshness reporting."""
+        date_columns = {
+            "redfin": ["period_end"],
+            "rent": ["as_of_date"],
+            "macro": ["as_of_date"],
+            "firm": ["exit_date", "purchase_date"],
+            "zillow_market": ["as_of_date"],
+        }
+        for column in date_columns.get(source_name, []):
+            if column not in curated_df.columns:
+                continue
+            values = pd.to_datetime(curated_df[column], errors="coerce").dropna()
+            if not values.empty:
+                return values.max().date().isoformat()
+        return None
 
     @staticmethod
     def _upsert_sqlite(session, model, rows: list[dict], conflict_cols: list[str], update_cols: list[str]) -> None:
@@ -195,6 +219,36 @@ class IngestionPipeline:
             )
         return len(rows)
 
+    def _load_zillow_market(self, curated_market: pd.DataFrame) -> int:
+        if curated_market.empty:
+            return 0
+
+        rows = []
+        for record in curated_market.to_dict(orient="records"):
+            rows.append(
+                {
+                    "region": str(record["region"]),
+                    "state": str(record["state"]).upper(),
+                    "as_of_date": record["as_of_date"],
+                    "metric": str(record["metric"]),
+                    "value": float(record["value"]),
+                    "mom_change": float(record["mom_change"]) if pd.notna(record.get("mom_change")) else None,
+                    "yoy_change": float(record["yoy_change"]) if pd.notna(record.get("yoy_change")) else None,
+                    "source_file": str(record["source_file"]) if pd.notna(record.get("source_file")) else None,
+                    "updated_at": datetime.utcnow(),
+                }
+            )
+
+        with session_scope() as session:
+            self._upsert_sqlite(
+                session,
+                ZillowMarketMetric,
+                rows,
+                conflict_cols=["region", "state", "as_of_date", "metric"],
+                update_cols=["value", "mom_change", "yoy_change", "source_file", "updated_at"],
+            )
+        return len(rows)
+
     def _load_market_features(self, curated_redfin: pd.DataFrame, curated_macro: pd.DataFrame) -> int:
         with session_scope() as session:
             properties = session.execute(select(Property.id, Property.zip_code)).all()
@@ -265,23 +319,34 @@ class IngestionPipeline:
             )
         return len(rows)
 
-    def run(self) -> dict[str, dict[str, int]]:
+    def run(self) -> dict[str, Any]:
         """Execute ingestion for all sources and load curated outputs into DB."""
         init_db()
 
-        report: dict[str, dict[str, int]] = {}
+        source_report: dict[str, dict[str, int]] = {}
         curated: dict[str, pd.DataFrame] = {}
+        latest_record_dates: dict[str, str | None] = {}
 
         for source in self.sources:
             _, curated_df, metrics = self._ingest_source(source)
-            report[source.name] = metrics
+            source_report[source.name] = metrics
             curated[source.name] = curated_df
+            latest_record_dates[source.name] = self._latest_record_date(source.name, curated_df)
 
-        report["database"] = {
+        database_report = {
             "properties_upserted": self._load_properties(curated["zillow"]),
+            "zillow_market_metrics_upserted": self._load_zillow_market(curated["zillow_market"]),
             "firm_deals_upserted": self._load_firm_data(curated["firm"]),
             "rents_upserted": self._load_rent(curated["rent"]),
             "market_features_upserted": self._load_market_features(curated["redfin"], curated["macro"]),
+        }
+        report: dict[str, Any] = {
+            "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "retention_policy": "append-only",
+            "sources": source_report,
+            "latest_record_dates": latest_record_dates,
+            "database": database_report,
+            "notes": "Refreshes add new files/records and keep the latest successful curated dataset as the app fallback.",
         }
 
         report_path = self.curated_root / "ingestion_report.json"

@@ -27,6 +27,29 @@ def test_health_endpoint() -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_data_freshness_endpoint() -> None:
+    response = client.get("/data/freshness")
+    body = response.json()
+
+    assert response.status_code == 200
+    assert "label" in body
+    assert body["retention_policy"] == "append-only"
+
+
+def test_dashboard_support_endpoints() -> None:
+    endpoints = [
+        "/models/evaluation",
+        "/data/coverage",
+        "/analytics/market",
+        "/predictions/audit",
+    ]
+
+    for endpoint in endpoints:
+        response = client.get(endpoint)
+        assert response.status_code == 200
+        assert response.json()
+
+
 def test_predict_endpoint() -> None:
     response = client.post("/predict", json=sample_payload())
     body = response.json()

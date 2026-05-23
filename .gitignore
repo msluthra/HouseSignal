@@ -16,6 +16,9 @@ frontend/node_modules/
 frontend/.next/
 frontend/.env.local
 data/raw/*
+!data/raw/*/
+data/raw/**/*
+!data/raw/**/
 data/processed/*
 data/curated/*
 !data/raw/.gitkeep

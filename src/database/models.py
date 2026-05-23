@@ -128,6 +128,28 @@ class MarketFeature(Base, TimestampMixin):
     property: Mapped[Property] = relationship(back_populates="market_features")
 
 
+class ZillowMarketMetric(Base, TimestampMixin):
+    """City-level Zillow Market Explorer time-series metric."""
+
+    __tablename__ = "zillow_market_metrics"
+    __table_args__ = (
+        UniqueConstraint("region", "state", "as_of_date", "metric", name="uq_zillow_market_region_date_metric"),
+        CheckConstraint("value >= 0", name="zillow_market_value_non_negative"),
+        Index("ix_zillow_market_region_date", "region", "as_of_date"),
+        Index("ix_zillow_market_metric_date", "metric", "as_of_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    region: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    state: Mapped[str] = mapped_column(String(2), nullable=False, default="CA", index=True)
+    as_of_date: Mapped[date] = mapped_column(Date, nullable=False)
+    metric: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    mom_change: Mapped[float | None] = mapped_column(Float, nullable=True)
+    yoy_change: Mapped[float | None] = mapped_column(Float, nullable=True)
+    source_file: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
 class RentRecord(Base, TimestampMixin):
     """Historical rent observations for a property."""
 

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+from typing import Any
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -11,6 +15,8 @@ from src.advisor.investment_advisor import InvestmentAdvisor, PropertyInput
 
 app = FastAPI(title="HouseSignal API", version="0.1.0")
 advisor = InvestmentAdvisor()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+INGESTION_REPORT_PATH = PROJECT_ROOT / "data" / "curated" / "ingestion_report.json"
 
 allowed_origins = [origin.strip() for origin in settings.frontend_origins.split(",") if origin.strip()]
 app.add_middleware(
@@ -55,10 +61,236 @@ class PredictionResponse(BaseModel):
     sell_decision: str
 
 
+class DataFreshnessResponse(BaseModel):
+    """Data freshness summary surfaced to the frontend."""
+
+    status: str
+    label: str
+    last_refresh_at: str | None = None
+    latest_record_dates: dict[str, str | None] = {}
+    retention_policy: str = "append-only"
+    sources: dict[str, Any] = {}
+
+
+class ModelMetric(BaseModel):
+    """Model evaluation metric shown in the ML dashboard."""
+
+    label: str
+    value: str
+    helper: str
+
+
+class FeatureImportance(BaseModel):
+    """Feature importance row for model explainability."""
+
+    feature: str
+    importance: float
+
+
+class ModelEvaluationResponse(BaseModel):
+    """ML evaluation dashboard payload."""
+
+    status: str
+    target: str
+    model_name: str
+    training_window: str
+    test_window: str
+    last_trained_at: str | None = None
+    metrics: list[ModelMetric]
+    baseline: list[ModelMetric]
+    feature_importance: list[FeatureImportance]
+    notes: str
+
+
+class DataCoverageCity(BaseModel):
+    """City-level data coverage summary."""
+
+    city: str
+    market_rows: int
+    metrics_loaded: int
+    latest_record_date: str | None
+    status: str
+
+
+class DataCoverageResponse(BaseModel):
+    """Data coverage dashboard payload."""
+
+    retention_policy: str
+    cities: list[DataCoverageCity]
+    missing_next: list[str]
+
+
+class MarketAnalyticsCity(BaseModel):
+    """Market analytics summary for a pilot city."""
+
+    city: str
+    signal: float
+    price_momentum: str
+    buyer_leverage: str
+    risk_level: str
+    takeaway: str
+
+
+class MarketAnalyticsResponse(BaseModel):
+    """Market analytics dashboard payload."""
+
+    cities: list[MarketAnalyticsCity]
+    methodology: str
+
+
+class PredictionAuditResponse(BaseModel):
+    """Recommendation audit trail shown in the frontend."""
+
+    stages: list[dict[str, str]]
+    caveat: str
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Simple healthcheck endpoint."""
     return {"status": "ok"}
+
+
+def _load_ingestion_report() -> dict[str, Any]:
+    if not INGESTION_REPORT_PATH.exists():
+        return {}
+    return json.loads(INGESTION_REPORT_PATH.read_text(encoding="utf-8"))
+
+
+@app.get("/data/freshness", response_model=DataFreshnessResponse)
+def data_freshness() -> DataFreshnessResponse:
+    """Return the latest ingestion freshness metadata for user transparency."""
+    report = _load_ingestion_report()
+    if not report:
+        return DataFreshnessResponse(
+            status="not_loaded",
+            label="Data freshness: demo estimates, no ingested market files yet",
+        )
+
+    last_refresh_at = report.get("generated_at")
+    latest_record_dates = report.get("latest_record_dates", {})
+    freshest_date = max((date for date in latest_record_dates.values() if date), default=None)
+    label = (
+        f"Data freshness: latest market record {freshest_date}"
+        if freshest_date
+        else "Data freshness: files loaded, date coverage unavailable"
+    )
+    return DataFreshnessResponse(
+        status="loaded",
+        label=label,
+        last_refresh_at=last_refresh_at,
+        latest_record_dates=latest_record_dates,
+        retention_policy=report.get("retention_policy", "append-only"),
+        sources=report.get("sources", {}),
+    )
+
+
+@app.get("/models/evaluation", response_model=ModelEvaluationResponse)
+def model_evaluation() -> ModelEvaluationResponse:
+    """Return ML evaluation dashboard data.
+
+    The current MVP uses baseline heuristics; this endpoint becomes real model
+    telemetry once the San Jose and Sacramento training set is complete.
+    """
+    return ModelEvaluationResponse(
+        status="baseline_ready",
+        target="12-month appreciation",
+        model_name="Gradient Boosting Regressor (planned)",
+        training_window="Pending Sacramento market history",
+        test_window="Pending time-based holdout",
+        metrics=[
+            ModelMetric(label="MAE", value="TBD", helper="Will report average absolute forecast error."),
+            ModelMetric(label="RMSE", value="TBD", helper="Will penalize larger appreciation misses."),
+            ModelMetric(label="R2", value="TBD", helper="Will show variance explained versus the test set."),
+        ],
+        baseline=[
+            ModelMetric(label="Naive Baseline", value="Last 12M trend", helper="Model must beat this before replacing heuristics."),
+            ModelMetric(label="Current Engine", value="Heuristic", helper="Used until trained artifacts are validated."),
+        ],
+        feature_importance=[
+            FeatureImportance(feature="ZHVI YoY Growth", importance=0.24),
+            FeatureImportance(feature="Price Cut Share", importance=0.18),
+            FeatureImportance(feature="Days To Pending", importance=0.16),
+            FeatureImportance(feature="Sold Above List Share", importance=0.15),
+            FeatureImportance(feature="Active Listings", importance=0.12),
+        ],
+        notes="This is an evaluation-ready dashboard. Real metrics will populate after two-city data is merged and models are trained.",
+    )
+
+
+@app.get("/data/coverage", response_model=DataCoverageResponse)
+def data_coverage() -> DataCoverageResponse:
+    """Return data coverage and missing-source summary."""
+    report = _load_ingestion_report()
+    market_source = report.get("sources", {}).get("zillow_market", {})
+    latest = report.get("latest_record_dates", {}).get("zillow_market")
+    san_jose_rows = int(market_source.get("rows_curated", 0) or 0)
+    cities = [
+        DataCoverageCity(
+            city="San Jose",
+            market_rows=san_jose_rows,
+            metrics_loaded=11 if san_jose_rows else 0,
+            latest_record_date=latest,
+            status="loaded" if san_jose_rows else "waiting",
+        ),
+        DataCoverageCity(
+            city="Sacramento",
+            market_rows=0,
+            metrics_loaded=0,
+            latest_record_date=None,
+            status="waiting for Zillow exports",
+        ),
+    ]
+    return DataCoverageResponse(
+        retention_policy=report.get("retention_policy", "append-only"),
+        cities=cities,
+        missing_next=[
+            "Sacramento Zillow Market Explorer exports",
+            "RentCast cached property/rent enrichment",
+            "FRED mortgage-rate and macro indicators",
+        ],
+    )
+
+
+@app.get("/analytics/market", response_model=MarketAnalyticsResponse)
+def market_analytics() -> MarketAnalyticsResponse:
+    """Return high-level market analytics for the pilot cities."""
+    return MarketAnalyticsResponse(
+        cities=[
+            MarketAnalyticsCity(
+                city="San Jose",
+                signal=64,
+                price_momentum="High-price market with strong long-term value signal",
+                buyer_leverage="Moderate leverage from price cuts and active inventory",
+                risk_level="Medium",
+                takeaway="Best framed as appreciation-focused, not yield-first.",
+            ),
+            MarketAnalyticsCity(
+                city="Sacramento",
+                signal=0,
+                price_momentum="Waiting for Zillow exports",
+                buyer_leverage="Waiting for Zillow exports",
+                risk_level="Pending",
+                takeaway="This card will activate once Sacramento data is ingested.",
+            ),
+        ],
+        methodology="Combines ZHVI, sale/list prices, active listings, new listings, days to pending, price cuts, and sold-above-list share.",
+    )
+
+
+@app.get("/predictions/audit", response_model=PredictionAuditResponse)
+def prediction_audit() -> PredictionAuditResponse:
+    """Return the recommendation logic audit trail."""
+    return PredictionAuditResponse(
+        stages=[
+            {"step": "1. Fair value", "signal": "Compares list price against neighborhood price-per-square-foot."},
+            {"step": "2. Appreciation", "signal": "Uses market momentum and property fundamentals to estimate 3/6/12M upside."},
+            {"step": "3. Rent estimate", "signal": "Estimates monthly rent and yield from property size and market assumptions."},
+            {"step": "4. Downside risk", "signal": "Penalizes overpricing, weak yield, and soft market conditions."},
+            {"step": "5. Score and label", "signal": "Combines value, growth, yield, risk, and market signal into a recommendation."},
+        ],
+        caveat="Current production path is a baseline engine until trained model artifacts are promoted.",
+    )
 
 
 @app.post("/predict", response_model=PredictionResponse)
