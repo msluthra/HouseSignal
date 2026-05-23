@@ -100,27 +100,3 @@ data/            Raw, processed, and curated data
 tests/           Backend and data tests
 scripts/         Project scripts
 ```
-
-## Current Status
-
-- Frontend dashboard is built
-- FastAPI backend is built
-- Zillow Market Explorer ingestion is working
-- San Jose market data is loaded locally
-- Data freshness and coverage dashboards are built
-- Model evaluation dashboard is scaffolded
-- Recommendation logic currently uses baseline heuristics
-
-## Next Steps
-
-- Add Sacramento Zillow market exports
-- Build the two-city monthly training table
-- Train appreciation and risk models
-- Replace baseline forecast logic with saved model artifacts
-- Add cached RentCast enrichment for property and rent details
-- Move hosted storage to Supabase/Postgres
-- Deploy the app
-
-## Notes
-
-HouseSignal is a decision-support project, not financial advice. The current version is an MVP and the ML layer is still being built.
