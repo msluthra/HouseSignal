@@ -8,7 +8,15 @@ sqlalchemy
 psycopg2-binary
 python-dotenv
 streamlit
+plotly
+streamlit-extras
+streamlit-aggrid
+pydeck
 requests
 pydantic
 httpx
 pytest
+supabase
+openai
+pypdf
+python-multipart

@@ -1,6 +1,6 @@
-# HouseSignal
+# HouseSignal AI
 
-HouseSignal is a real estate analytics app for comparing California housing markets and evaluating residential property decisions.
+HouseSignal AI is a real estate analytics platform for comparing California housing markets, evaluating residential property decisions, and building toward commercial real estate deal diligence.
 
 The MVP is focused on San Jose, with Sacramento planned as the second market. It ingests housing market data, scores property inputs, and shows the reasoning behind buy, rent, sell, or hold recommendations.
 
@@ -18,6 +18,8 @@ Coming soon.
 - Tracks market data freshness
 - Shows model evaluation and feature-importance dashboards
 - Explains recommendation logic through a prediction audit panel
+- Supports a multi-agent commercial real estate diligence architecture
+- Prepares for RAG analysis across leases, rent rolls, offering memorandums, T12s, and property condition reports
 
 ## Stack
 
@@ -27,6 +29,7 @@ Frontend:
 - React
 - TypeScript
 - CSS
+- Streamlit multi-page app
 
 Backend:
 
@@ -34,6 +37,7 @@ Backend:
 - Pydantic
 - SQLAlchemy
 - SQLite
+- Supabase-ready Auth, Postgres, Storage, and RLS schema
 
 Data / ML:
 
@@ -43,11 +47,20 @@ Data / ML:
 - XGBoost
 - Parquet
 - Zillow Market Explorer data
+- FRED macro data
+- RentCast API integration with cache-first usage controls
+- RAG document processing
 
 Testing:
 
 - Pytest
 - FastAPI TestClient
+
+Infrastructure:
+
+- Docker
+- Docker Compose
+- Supabase SQL migrations
 
 ## Data Pipeline
 
@@ -69,6 +82,37 @@ Current Zillow market metrics supported:
 
 The ingestion flow is append-only. New data is added without deleting historical records.
 
+## Security Setup
+
+HouseSignal AI uses environment variables for all secrets.
+
+- Real `.env` files are ignored by git.
+- `.env.example` contains placeholders only.
+- Backend-only keys are not shown in Streamlit, logs, or frontend code.
+- RentCast usage is cache-first and daily-limit protected.
+- Local uploads, local API cache files, and local vector stores are ignored.
+
+Backend-only values:
+
+- `RENTCAST_API_KEY`
+- `OPENAI_API_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Browser-safe values:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+
+Ignored local paths include:
+
+- `.env`
+- `.env.local`
+- `.env.production`
+- `*.env`
+- `data/uploads/`
+- `data/cache/`
+- local Chroma/vector database files
+
 ## API Surface
 
 Core endpoints:
@@ -89,13 +133,21 @@ Dashboard endpoints:
 
 ```text
 frontend/        Next.js frontend
+app/             Streamlit multi-page app
 src/api/         FastAPI routes
 src/advisor/     Recommendation logic
 src/models/      Forecasting, risk, and scoring modules
 src/valuation/   Fair value logic
 src/ingestion/   Source loaders
 src/pipeline/    Ingestion pipeline
+src/agents/      Multi-agent analysis modules
+src/rag/         Document processing and retrieval
+src/integrations/ External API and Supabase clients
+src/cache/       API usage cache and request limiter
+src/security/    Secret-safe status helpers
+src/utils/       Config and security utilities
 src/schemas/     Data contracts
+supabase/        Schema, RLS, and storage policies
 data/            Raw, processed, and curated data
 tests/           Backend and data tests
 scripts/         Project scripts
