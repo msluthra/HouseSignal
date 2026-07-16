@@ -23,6 +23,7 @@ class AppConfig:
     app_env: str
     database_url: str
     supabase_url: str
+    supabase_mode: str
     supabase_anon_key: str
     supabase_service_role_key: str
     openai_api_key: str
@@ -61,6 +62,7 @@ def load_config(env_path: str | Path | None = None) -> AppConfig:
     return AppConfig(
         app_env=get_env("APP_ENV", "local"),
         database_url=get_env("DATABASE_URL", "sqlite:///./housesignal.db"),
+        supabase_mode=get_env("SUPABASE_MODE", "mock"),
         supabase_url=get_env("SUPABASE_URL"),
         supabase_anon_key=get_env("SUPABASE_ANON_KEY"),
         supabase_service_role_key=get_env("SUPABASE_SERVICE_ROLE_KEY"),

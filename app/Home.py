@@ -20,6 +20,7 @@ from src.agents.recommendation_agent import RecommendationAgent
 from src.agents.risk_analysis_agent import RiskAnalysisAgent
 from src.mock.sample_data import AGENT_PIPELINE, MARKET_SNAPSHOTS, SAMPLE_DEAL
 from src.security.secrets import get_secret_status
+from src.services.supabase.config import get_supabase_runtime_config
 
 try:
     import plotly.graph_objects as go
@@ -122,5 +123,8 @@ config_cols = st.columns(4)
 for idx, item in enumerate(get_secret_status()):
     with config_cols[idx % 4]:
         st.metric(item.label, "Configured" if item.configured else "Not configured")
+
+runtime = get_supabase_runtime_config()
+st.metric("Supabase Runtime", runtime.mode.value.title(), help="Mock mode keeps localhost working without real Supabase credentials.")
 
 st.info("Next: use the sidebar pages to test underwriting, document RAG, map exploration, and API usage controls with mock data.")

@@ -113,6 +113,16 @@ Ignored local paths include:
 - `data/cache/`
 - local Chroma/vector database files
 
+## Supabase Mode
+
+The app supports mock and live Supabase operation.
+
+- `SUPABASE_MODE=mock` keeps local development working without real credentials.
+- `SUPABASE_MODE=live` uses Supabase only when URL, anon key, and backend service key are configured.
+- Placeholder values from `.env.example` do not activate live mode.
+- Deal, document, agent-run, and recommendation persistence use the same service interfaces in both modes.
+- Mock document uploads are stored under ignored local upload paths.
+
 ## API Surface
 
 Core endpoints:
